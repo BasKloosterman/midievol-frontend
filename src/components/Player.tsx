@@ -1,0 +1,161 @@
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { Note, frames } from "../lib/note";
+import { WebMidi } from "webmidi";
+import { Clock } from "../lib/clock";
+import Emitter, { events } from "../lib/eventemitter";
+import { calcMelodyLength } from "../App";
+
+
+export interface PlayerProps {
+    melody: Note[];
+    instrument: {output: number, channel: number};
+    metronome: {output: number, channel: number};
+    beforeLoop: () => void;
+}
+
+export interface PlayerRef {
+    play: () => void;
+    stop: () => void;
+    pauze: () => void;
+    outputs: typeof WebMidi.outputs;
+    isPlaying: () => boolean;
+}
+
+const transform = (fakePitch: number) => Math.round(((240 + fakePitch) / 10))
+
+const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
+    const {melody} = props
+    const propsref = useRef<PlayerProps>(props)
+    const melodyref = useRef<Note[]>(melody)
+    const melodyLengthRef = useRef<number>(calcMelodyLength(melody))
+    
+    const pos = useRef<number>(0)
+    const playing = useRef<boolean>(false)
+    const webMidi = useRef<typeof WebMidi>(WebMidi)
+    const clock = useRef<typeof Clock>(Clock)
+    const ready = useRef(false)
+
+    const bpm = 90
+
+    useEffect(() => {
+        clock.current.setBPM(bpm)
+    },[bpm])
+
+    useEffect(() => {
+        propsref.current = props
+    }, [props])
+
+    useEffect(() => {
+        melodyref.current = melody
+        melodyLengthRef.current = calcMelodyLength(melody)
+    }, [melody])
+
+    useImperativeHandle(ref, () => {
+        return {
+            play: () => {
+                playing.current = true
+            },
+            stop: () => {
+                pos.current = 0
+                playing.current = false
+            },
+            pauze: () => {
+                playing.current = false
+            },
+            outputs: webMidi.current.outputs,
+            isPlaying: () => {
+                return playing.current
+            }
+        }
+    }, [ready.current]);
+
+    const processTick = () => {
+        const [metronome, loop, drumsOutput] = [false, true, 1]
+        const melody = melodyref.current
+        
+        const loopRange = calcMelodyLength(melody)
+        if (!ready.current) {
+            return
+        }
+
+        if (!playing.current) {
+            return
+        }
+            
+        const m = []
+        let maxTicks = 0
+        for (let idx = 0; idx < melody.length; idx++) {
+            const element = melody[idx];
+            if (element.position < pos.current) {
+                continue
+            }
+
+            if (element.position > maxTicks) {
+                maxTicks = element.position
+            }
+
+            m.push(element)
+        }
+        
+        if (pos.current > maxTicks && !loop) {
+            stop()
+            return
+        }
+
+        // Detect start new loop
+        if (loop && pos.current / frames >= loopRange) {
+            pos.current = 0         
+             // Detect start new loop
+            propsref.current.beforeLoop()
+            return
+        }
+
+
+        if (metronome) {
+            if (pos.current === 0) {
+                webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel].playNote('A#5', {
+                    duration: 200,
+                    attack: 1
+                });
+            }
+            if (pos.current % (1 * frames) === 0) {
+                webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel].playNote('C3', {
+                    duration: 200,
+                    attack: 1
+                });
+            }
+        }
+
+        m.forEach(note => {
+            if (note.position == pos.current) {
+                //play note
+                console.log(note.pitch, note.volume)
+                let output = webMidi.current.outputs[propsref.current.instrument.output];
+                let channel = output.channels[propsref.current.instrument.channel];
+                channel.playNote(transform(note.pitch), {duration: 200, attack: 1});
+            }
+        })
+
+        // if (pos.current % (frames / 4) == 0) {
+        //     sendCC(pos.current, instruments, melodyLength, webMidi.current)
+        // }
+
+        pos.current++
+    }
+
+    useEffect(() => {
+        (
+            async () => {
+                await WebMidi.enable()
+                ready.current = true
+                Emitter.trigger(events.eventChannelsChanged)
+            }
+        )()
+        
+        return clock.current.subscribe(processTick)
+    }, [])
+
+    return null
+})
+
+export default Player
