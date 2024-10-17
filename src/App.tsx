@@ -33,8 +33,9 @@ const App: FC = () => {
     const [loading, setLoading]= useState(false)
     const playerRef = useRef<PlayerRef>(null);
 
-    const [melody, setMelody] = useState<Melody>({dna: createRandomMelody(melodyLen), notes: [], loss: -1})
+    const [melody, setMelody] = useState<Melody>({dna: createRandomMelody(melodyLen), notes: [], score: -1})
     const [xGens, setxGens] = useState(1)
+    const [children, setChildren] = useState(50)
     const [nextMelody, setNextMelody] = useState<Melody>()
 
     const [output, setOutput] = useState<number>(0)
@@ -48,7 +49,7 @@ const App: FC = () => {
             let m = await init(melody.dna)
             setMelody(m)
 
-            m = await evolve(m.dna, xGens)
+            m = await evolve(m.dna, xGens, children)
             setNextMelody(m)
         })()
     }, [])
@@ -57,7 +58,7 @@ const App: FC = () => {
         const newMelody = await init(createRandomMelody(melodyLen))
         setMelody(newMelody)
 
-        const m = await evolve(newMelody.dna, xGens)
+        const m = await evolve(newMelody.dna, xGens, children)
         setNextMelody(m)
     }
 
@@ -78,7 +79,7 @@ const App: FC = () => {
                         const nextToPlay = nextMelody || melody
                         setMelody(nextToPlay)
             
-                        const m = await evolve(nextToPlay.dna, xGens)
+                        const m = await evolve(nextToPlay.dna, xGens, children)
                         setNextMelody(m)
                         setLoading(false)
                     }}
@@ -113,10 +114,11 @@ const App: FC = () => {
                     output={output} setOutput={setOutput} channel={channel} setChannel={setChannel}
                     metronomeOutput={metronomeOutput} setMetronomeOutput={setMetronomeOutput} metronomeChannel={metronomeChannel} setMetronomeChannel={setMetronomeChannel}
                 />
+                <TextField label={"Children per gen"} type='number' value={children} onInput={(e: React.ChangeEvent<HTMLInputElement>) => setChildren(parseInt(e.target.value))}/>
                 <TextField label={"X-gens"} type='number' value={xGens} onInput={(e: React.ChangeEvent<HTMLInputElement>) => setxGens(parseInt(e.target.value))}/>
                 <TextField label={"Note count"} type='number' value={melodyLen} onInput={(e: React.ChangeEvent<HTMLInputElement>) => setMelodyLen(parseInt(e.target.value))}/>
                 <Button onClick={restart}>Reset</Button>
-                <div>loss: {melody.loss}</div>
+                <div>score: {melody.score}</div>
             </Stack>
         </div>
     );
