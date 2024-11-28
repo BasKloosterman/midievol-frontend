@@ -1,4 +1,4 @@
-export const frames = 500;
+export const frames = 600;
 
 export interface Note {
     position: number;

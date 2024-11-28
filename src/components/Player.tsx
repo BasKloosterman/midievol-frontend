@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { Note, frames } from "../lib/note";
 import { WebMidi } from "webmidi";
 import { Clock } from "../lib/clock";
@@ -8,6 +8,7 @@ import { calcMelodyLength } from "../App";
 
 export interface PlayerProps {
     melody: Note[];
+    bpm: number;
     instrument: {output: number, channel: number};
     metronome: {output: number, channel: number};
     beforeLoop: () => void;
@@ -23,6 +24,14 @@ export interface PlayerRef {
 
 const transform = (fakePitch: number) => Math.round(((240 + fakePitch) / 10))
 
+// transfrom frames to ms in relatoin to BPM
+const calculateLength = (length: number, bpm: number, frames_per_q: number) : number => {
+    const qNoteFraction = length / frames_per_q
+    const secondsPerBeat = 60 / bpm
+
+    return qNoteFraction * secondsPerBeat * 1000
+}
+
 const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
     const {melody} = props
     const propsref = useRef<PlayerProps>(props)
@@ -35,11 +44,9 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
     const clock = useRef<typeof Clock>(Clock)
     const ready = useRef(false)
 
-    const bpm = 90
-
     useEffect(() => {
-        clock.current.setBPM(bpm)
-    },[bpm])
+        clock.current.setBPM(props.bpm)
+    },[props.bpm])
 
     useEffect(() => {
         propsref.current = props
@@ -128,11 +135,12 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
 
         m.forEach(note => {
             if (note.position == pos.current) {
+                
                 //play note
-                console.log(note.pitch, note.volume)
+                console.log(note.length, calculateLength(note.length, clock.current.getBPM(), frames))
                 let output = webMidi.current.outputs[propsref.current.instrument.output];
                 let channel = output.channels[propsref.current.instrument.channel];
-                channel.playNote(transform(note.pitch), {duration: 200, attack: 1});
+                channel.playNote(transform(note.pitch), {duration: calculateLength(note.length, clock.current.getBPM(), frames), attack: 1});
             }
         })
 

@@ -323,6 +323,9 @@ export const Clock = (function () {
         },
         noteDuration(t: number) {
             return (1000 * 60) / _bpm * t
+        },
+        getBPM(): number {
+            return _bpm
         }
     }
 })()
