@@ -113,34 +113,30 @@ const App: FC = () => {
 
     const [modFuncs, setModFuncs] = useState<ModFunc[]>([])
 
-    const updateModFunc = async (val: {idx: number, weight: number}) => {
-        const ret = await _updateModFunc(val)
+    const updateModFunc = async ({weight, idx}: {idx: number, weight: number}) => {
+        // const ret = await _updateModFunc(val)
 
-        setModFuncs(ret)
+        setModFuncs(x => x.map((x, _idx) => _idx === idx ? {...x, weight} : x))
     }
 
     useEffect(() => {
         (async () => {
-            let m = await getModFuncs()
-            setModFuncs(m)
-        })()
-    }, [])
+            let fns = await getModFuncs()
+            setModFuncs(fns)
 
-    useEffect(() => {
-        (async () => {
-            let m = await init(melody.dna)
+            let m = await init(melody.dna, fns)
             setMelody(m)
 
-            m = await evolve(m.dna, xGens, children)
+            m = await evolve(m.dna, xGens, children, fns)
             setNextMelody(m)
         })()
     }, [])
 
     const restart =  async () =>  {
-        const newMelody = await init(createRandomMelody(melodyLen))
+        const newMelody = await init(createRandomMelody(melodyLen), modFuncs)
         setMelody(newMelody)
 
-        const m = await evolve(newMelody.dna, xGens, children)
+        const m = await evolve(newMelody.dna, xGens, children, modFuncs)
         setNextMelody(m)
     }
 
@@ -154,7 +150,6 @@ const App: FC = () => {
                     metronome={{channel: metronomeChannel, output: metronomeOutput, enabled: metronome}}
                     bpm={melody.bpm}
                     beforeLoop={async () => {
-
                         if (loading) {
                             return
                         }
@@ -163,7 +158,7 @@ const App: FC = () => {
                         const nextToPlay = nextMelody || melody
                         setMelody(nextToPlay)
             
-                        const m = await evolve(nextToPlay.dna, xGens, children)
+                        const m = await evolve(nextToPlay.dna, xGens, children, modFuncs)
                         setNextMelody(m)
                         setLoading(false)
                     }}
