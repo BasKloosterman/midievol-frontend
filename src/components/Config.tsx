@@ -2,7 +2,7 @@ import { FC, useEffect, useState } from 'react';
 import { WebMidi } from 'webmidi';
 import Emitter, { events } from '../lib/eventemitter';
 import Select from './Select';
-import { Paper, Stack } from '@mui/material';
+import { Checkbox, Paper, Stack } from '@mui/material';
 
 interface ConfigProps {
     output?: number;
@@ -13,11 +13,14 @@ interface ConfigProps {
     setMetronomeOutput: (n: number) => void;
     metronomeChannel: number;
     setMetronomeChannel: (n: number) => void;
+    metronome: boolean, 
+    setMetronome: (n: boolean) => void;
 }
 
 const Config: FC<ConfigProps> = ({
     output=0, setOutput, channel=1, setChannel,
-    metronomeOutput=0, setMetronomeOutput, metronomeChannel=2, setMetronomeChannel
+    metronomeOutput=0, setMetronomeOutput, metronomeChannel=2, setMetronomeChannel,
+    metronome, setMetronome
 }) => {
     
     const [outputs, setOutputs] = useState(WebMidi.outputs)
@@ -49,6 +52,7 @@ const Config: FC<ConfigProps> = ({
                 }
                 options={(outputs[output]?.channels || []).map((x, idx) => ({value: idx, name: 'channel ' + x.number.toString()}))}
             />
+            <Checkbox checked={metronome} onChange={x => setMetronome(x.target.checked)}/>
             <Select
                 value={metronomeOutput || 0}
                 label="Metronome Output"

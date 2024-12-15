@@ -109,6 +109,7 @@ const App: FC = () => {
 
     const [metronomeOutput, setMetronomeOutput] = useState<number>(0)
     const [metronomeChannel, setMetronomeChannel] = useState<number>(2)
+    const [metronome, setMetronome] = useState<boolean>(false)
 
     const [modFuncs, setModFuncs] = useState<ModFunc[]>([])
 
@@ -150,11 +151,10 @@ const App: FC = () => {
                     ref={playerRef}
                     melody={melody.notes || []}
                     instrument={{channel, output}}
-                    metronome={{channel: metronomeChannel, output: metronomeOutput}}
+                    metronome={{channel: metronomeChannel, output: metronomeOutput, enabled: metronome}}
                     bpm={melody.bpm}
                     beforeLoop={async () => {
 
-                        console.log('new loop', loading)
                         if (loading) {
                             return
                         }
@@ -197,6 +197,7 @@ const App: FC = () => {
                 <Config
                     output={output} setOutput={setOutput} channel={channel} setChannel={setChannel}
                     metronomeOutput={metronomeOutput} setMetronomeOutput={setMetronomeOutput} metronomeChannel={metronomeChannel} setMetronomeChannel={setMetronomeChannel}
+                    metronome={metronome} setMetronome={setMetronome}
                 />
                 <TextField label={"Children per gen"} type='number' value={children} onInput={(e: React.ChangeEvent<HTMLInputElement>) => setChildren(parseInt(e.target.value))}/>
                 <TextField label={"X-gens"} type='number' value={xGens} onInput={(e: React.ChangeEvent<HTMLInputElement>) => setxGens(parseInt(e.target.value))}/>

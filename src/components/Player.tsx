@@ -10,7 +10,7 @@ export interface PlayerProps {
     melody: Note[];
     bpm: number;
     instrument: {output: number, channel: number};
-    metronome: {output: number, channel: number};
+    metronome: {output: number, channel: number, enabled: boolean};
     beforeLoop: () => void;
 }
 
@@ -77,7 +77,8 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
     }, [ready.current]);
 
     const processTick = () => {
-        const [metronome, loop, drumsOutput] = [false, true, 1]
+        const [loop, drumsOutput] = [true, 1]
+        const {enabled: metronome} = propsref.current.metronome
         const melody = melodyref.current
         
         const loopRange = calcMelodyLength(melody)
