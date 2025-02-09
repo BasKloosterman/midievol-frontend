@@ -160,6 +160,13 @@ const Details : FC<DetailsProps> = ({
                 size='small'
             />
             <TextField
+                style={{width: '88px'}}
+                label={"Melody length"}
+                value={calcMelodyLength(melodyState.melody?.notes || [])}
+                InputProps={{readOnly: true}}
+                size='small'
+            />
+            <TextField
                 // style={{width: '61px'}}
                 label={"Score"}
                 value={melodyState.melody?.score}

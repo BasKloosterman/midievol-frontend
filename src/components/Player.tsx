@@ -146,13 +146,13 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
 
         if (metronome) {
             if (pos.current === 0) {
-                webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel].playNote('A#5', {
+                webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('A#5', {
                     duration: 200,
                     attack: 1
                 });
             }
             if (pos.current % (1 * frames) === 0) {
-                webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel].playNote('C3', {
+                webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('C3', {
                     duration: 200,
                     attack: 1
                 });
