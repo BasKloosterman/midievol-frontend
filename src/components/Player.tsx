@@ -1,9 +1,10 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { Dispatch, forwardRef, SetStateAction, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { Note, frames } from "../lib/note";
 import { WebMidi } from "webmidi";
 import { Clock } from "../lib/clock";
 import Emitter, { events } from "../lib/eventemitter";
-import { calcMelodyLength } from "../App";
+import { calcMelodyLength } from "../pages/Details";
+import { range } from "lodash";
 
 
 export interface PlayerProps {
@@ -11,7 +12,11 @@ export interface PlayerProps {
     bpm: number;
     instrument: {output: number, channel: number};
     metronome: {output: number, channel: number, enabled: boolean};
+    numVoices: number;
+    voiceSplits: [number, number][]
     beforeLoop: () => void;
+    trigger: Dispatch<SetStateAction<number>>;
+    // addNote: (note: Note) => void
 }
 
 export interface PlayerRef {
@@ -20,6 +25,13 @@ export interface PlayerRef {
     pauze: () => void;
     outputs: typeof WebMidi.outputs;
     isPlaying: () => boolean;
+}
+
+const includes  = (x : number, minMax: [number, number]) => x >= minMax[0] && x <= minMax[1]
+
+const getChannelIdx = (note: Note, numVoices: number, voiceSplits: [number, number][]) => {    
+    // VoiceSplits are 0 - 84 and transformed pithes are from 0 - 103 so we need to subtract 24 from transformed pitch
+    return range(1, numVoices + 1).filter(channel => includes(transform(note.pitch) - 24, voiceSplits[channel - 1]))
 }
 
 const transform = (fakePitch: number) => Math.round(((240 + fakePitch) / 10))
@@ -61,13 +73,22 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
         return {
             play: () => {
                 playing.current = true
+                console.log('ready', ready.current)
+                props.trigger(t => t+1)
             },
             stop: () => {
                 pos.current = 0
                 playing.current = false
+
+                let output = webMidi.current.outputs[propsref.current.instrument.output];
+                let channel = output.channels[propsref.current.instrument.channel];
+
+                channel.sendAllNotesOff();
+                props.trigger(t => t+1)
             },
             pauze: () => {
                 playing.current = false
+                props.trigger(t => t+1)
             },
             outputs: webMidi.current.outputs,
             isPlaying: () => {
@@ -77,11 +98,13 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
     }, [ready.current]);
 
     const processTick = () => {
+        
         const [loop, drumsOutput] = [true, 1]
         const {enabled: metronome} = propsref.current.metronome
         const melody = melodyref.current
         
         const loopRange = calcMelodyLength(melody)
+
         if (!ready.current) {
             return
         }
@@ -115,9 +138,11 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
             pos.current = 0         
              // Detect start new loop
             propsref.current.beforeLoop()
+            webMidi.current.outputs[propsref.current.metronome.output].sendAllNotesOff()
             return
         }
 
+        
 
         if (metronome) {
             if (pos.current === 0) {
@@ -136,18 +161,14 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
 
         m.forEach(note => {
             if (note.position == pos.current) {
-                
-                //play note
-                console.log(note.length, calculateLength(note.length, clock.current.getBPM(), frames))
                 let output = webMidi.current.outputs[propsref.current.instrument.output];
-                let channel = output.channels[propsref.current.instrument.channel];
-                channel.playNote(transform(note.pitch), {duration: calculateLength(note.length, clock.current.getBPM(), frames), attack: 1});
+                let channelIdx = getChannelIdx(note, propsref.current.numVoices, propsref.current.voiceSplits);
+
+                channelIdx.forEach(idx => {
+                    output.channels[idx].playNote(transform(note.pitch), {duration: calculateLength(note.length, clock.current.getBPM(), frames), attack: 1});
+                })
             }
         })
-
-        // if (pos.current % (frames / 4) == 0) {
-        //     sendCC(pos.current, instruments, melodyLength, webMidi.current)
-        // }
 
         pos.current++
     }

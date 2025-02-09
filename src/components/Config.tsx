@@ -1,34 +1,26 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, useContext, useEffect, useState } from 'react';
 import { WebMidi } from 'webmidi';
 import Emitter, { events } from '../lib/eventemitter';
 import Select from './Select';
 import { Checkbox, Paper, Stack } from '@mui/material';
+import { ConfigContext } from '../state/context';
+import { setController, setOutput, setMetronome, setMetronomeOutput, setMetronomeChannel } from '../state/reducer/config';
 
-interface ConfigProps {
-    output?: number;
-    setOutput: (n: number) => void;
-    channel?: number;
-    setChannel: (n: number) => void;
-    metronomeOutput: number;
-    setMetronomeOutput: (n: number) => void;
-    metronomeChannel: number;
-    setMetronomeChannel: (n: number) => void;
-    metronome: boolean, 
-    setMetronome: (n: boolean) => void;
+export interface ConfigProps {
 }
 
 const Config: FC<ConfigProps> = ({
-    output=0, setOutput, channel=1, setChannel,
-    metronomeOutput=0, setMetronomeOutput, metronomeChannel=2, setMetronomeChannel,
-    metronome, setMetronome
+
 }) => {
-    
+    const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
     const [outputs, setOutputs] = useState(WebMidi.outputs)
+    const [inputs, setInputs] = useState(WebMidi.inputs)
     
 
     useEffect(()=>{
         return Emitter.subscribe(events.eventChannelsChanged, () => {
             setOutputs([...WebMidi.outputs])
+            setInputs([...WebMidi.inputs])
         })
     }, []) 
 
@@ -37,37 +29,38 @@ const Config: FC<ConfigProps> = ({
         <Paper elevation={2}>
         <Stack marginBottom={1} spacing={2} direction='row' padding={2}>
             <Select
-                value={output || 0}
+                value={configState.controller || 0}
+                label="Controller"
+                onChange={(x) =>
+                    configDispatch(setController(x))
+                }
+                options={[{value: -1, name: 'Please select input', disabled: true}, ...inputs.map((x, idx) => ({value: idx, name: x.name}))]}
+            />
+            <Select
+                value={configState.output || 0}
                 label="Output"
                 onChange={(x) =>
-                    setOutput(x)
+                    configDispatch(setOutput(x))
                 }
                 options={outputs.map((x, idx) => ({value: idx, name: x.name}))}
             />
+            
+            <Checkbox checked={configState.metronome} onChange={x => configDispatch(setMetronome(x.target.checked))}/>
             <Select
-                value={channel || 1}
-                label="Channel"
-                onChange={(x) =>
-                    setChannel(x)
-                }
-                options={(outputs[output]?.channels || []).map((x, idx) => ({value: idx, name: 'channel ' + x.number.toString()}))}
-            />
-            <Checkbox checked={metronome} onChange={x => setMetronome(x.target.checked)}/>
-            <Select
-                value={metronomeOutput || 0}
+                value={configState.metronomeOutput || 0}
                 label="Metronome Output"
                 onChange={(x) =>
-                    setMetronomeOutput(x)
+                    configDispatch(setMetronomeOutput(x))
                 }
                 options={outputs.map((x, idx) => ({value: idx, name: x.name}))}
             />
             <Select
-                value={metronomeChannel || 2}
+                value={configState.metronomeChannel || 2}
                 label="Metronome Channel"
                 onChange={(x) =>
-                    setMetronomeChannel(x)
+                    configDispatch(setMetronomeChannel(x))
                 }
-                options={(outputs[output]?.channels || []).map((x, idx) => ({value: idx, name: 'channel ' + x.number.toString()}))}
+                options={(outputs[configState.output]?.channels || []).map((x, idx) => ({value: idx, name: 'channel ' + x.number.toString()}))}
             />
         </Stack>
         </Paper>

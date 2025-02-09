@@ -1,236 +1,206 @@
-import { FC, useEffect, useRef, useState } from 'react';
-import { Note, frames } from './lib/note';
+import { FC, useEffect, useReducer, useRef, useState } from 'react';
 import Player, { PlayerRef } from './components/Player';
-import {
-    Button,
-    ButtonGroup, IconButton, Input, Slider, Stack,
-    TextField,
-    Typography
-} from '@mui/material';
-import StopIcon from '@mui/icons-material/Stop';
-import PlayArrow from '@mui/icons-material/PlayArrow';
-import { ModFunc, evolve, getModFuncs, init, Melody, updateModFunc as _updateModFunc } from './lib/srv';
-import Config from './components/Config';
+
+import { ModFunc, evolve, getModFuncs, init, Melody} from './lib/srv';
+import Details from './pages/Details';
 import { createRandomMelody } from './lib/base4';
+import Main from './pages/Main';
+import { AnimNote } from './components/Visualisation';
+import { range, unionBy } from 'lodash';
+import { ControlChangeMessageEvent, WebMidi } from 'webmidi';
+import { handleCCUpdate, NONE_ASSIGNED, updateControls } from './lib/controller';
+import { mapFrom01Linear, mapTo01Linear } from '@dsp-ts/math';
+import ConfigReducer, { configSlice, setBpm, setControls, setModFuncs, setNumVoices, setVoiceSplitMax, setVoiceSplitMin, updateModFunc } from './state/reducer/config';
+import { ConfigContext, MelodyContext } from './state/context';
+import MelodyReducer, { melodySlice, setMelody, setNextMelody } from './state/reducer/melody';
 
-
-export const calcMelodyLength = (melody: Note[]) => {
-    if (!melody.length) {
-        return 1;
-    }
-    const latestNote = melody[melody.length - 1].position;
-    let loopRange_ = Math.ceil(latestNote / (1 * frames));
-    if (latestNote % (1 * frames) === 0) {
-        loopRange_ += 1;
-    }
-
-    return loopRange_;
-};
-
-const startLen = 10
-
-const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-
-const maj = [0,2,4,5,7,9,11]
-const min = [0,2,3,5,7,8,11]
-
-const k = [0,1,2,3,4,5,6,7,8,9,10,11]
-
-const keys = [
-    ...k.map(x => maj.map(p => (p+x)%12)),
-    ...k.map(x => min.map(p => (p+x)%12))
-]
-
-const getKey = (_notes?: Note[], label?: string) => {
-    if (!_notes) {
-        return ''
-    }
-    const normPitches = _notes.map(n => Math.round(n.pitch/10)%12)
-    console.log(label+':', normPitches)
-    const [perc, idx] = keys.reduce((acc, cur, idx) => {
-        
-        const score = normPitches.filter(p => cur.includes(p)).length
-        const perc = score / normPitches.length
-
-        console.log(`${label}: ${notes[idx % 12]} ${idx > 12 ? 'min' : 'maj'}: ${perc * 100}%`)
-
-        if (perc > acc[0]) {
-            return [perc, idx]
-        }
-        return acc
-    }, [-1, -1])
-
-    return `${label}: ${notes[idx % 12]} ${idx > 12 ? 'min' : 'maj'}: ${perc * 100}%`
-}
-
-
-interface ModFuncProps {
-    idx: number;
-    func: ModFunc;
-    update: ({idx, weight}: {idx: number, weight: number}) => void
-}
-
-const ModFunc: FC<ModFuncProps> = ({func, update, idx}) => {
-    const {name, weight} = func
-    return (
-        <>
-            <Typography gutterBottom>{name}</Typography>
-            <Slider
-                aria-label={name}
-                defaultValue={30}
-                value={weight}
-                step={1}
-                marks
-                min={-10}
-                max={10}
-                valueLabelDisplay="on"
-                onChange={(e, newValue) => {
-                    console.log(newValue)
-                    update({idx, weight: Array.isArray(newValue) ? newValue[0] : newValue}) 
-                }}
-            />
-        </>
-    )
-    return <div>{func.name}: {func.weight}</div>
+export enum views {
+    details = 'details',
+    main = 'main',
 }
 
 const App: FC = () => {
-    const [melodyLen, setMelodyLen] = useState(startLen)
+    const [configState, configDispatch] = useReducer(ConfigReducer, configSlice.getInitialState())
+    const [melodyState, melodyDispatch] = useReducer(MelodyReducer, melodySlice.getInitialState())
     const [loading, setLoading]= useState(false)
     const playerRef = useRef<PlayerRef>(null);
+    const [view, setView] = useState(views.main);
 
-    const [melody, setMelody] = useState<Melody>({dna: createRandomMelody(melodyLen), notes: [], score: -1, bpm: 90})
-    const [xGens, setxGens] = useState(25)
-    const [children, setChildren] = useState(50)
-    const [nextMelody, setNextMelody] = useState<Melody>()
+    // Used to trigger player update and cause rerender
+    const [trigger, setTrigger] = useState(0);
 
-    const [output, setOutput] = useState<number>(0)
-    const [channel, setChannel] = useState<number>(1)
+    const [notes, setNotes] = useState<AnimNote[]>([])
 
-    const [metronomeOutput, setMetronomeOutput] = useState<number>(0)
-    const [metronomeChannel, setMetronomeChannel] = useState<number>(2)
-    const [metronome, setMetronome] = useState<boolean>(false)
+    // controllerLearn can contain a key (controller) of the knob that is
+    // currently trying to 'learn' it's CC channel 
+    const [controllerLearn, setControllerLearn] = useState<string>()
+    // const [controls, setControls] = useState<Controls>(emptyControls)
 
-    const [modFuncs, setModFuncs] = useState<ModFunc[]>([])
+    useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setControllerLearn(undefined)
+            }
 
-    const updateModFunc = async ({weight, idx}: {idx: number, weight: number}) => {
-        // const ret = await _updateModFunc(val)
+            // Clear current set CC channel
+            if (e.key === 'c' && controllerLearn) {
+                configDispatch(setControls(updateControls(configState.controls, controllerLearn, NONE_ASSIGNED)))
+                setControllerLearn(undefined)
+            }
+        }
 
-        setModFuncs(x => x.map((x, _idx) => _idx === idx ? {...x, weight} : x))
-    }
+        window.addEventListener('keyup', handleKeyPress)
+
+        return () => window.removeEventListener('keyup', handleKeyPress)
+    }, [controllerLearn, configState.controls])
+
+    useEffect(() => {
+        const handleCC = (cc: ControlChangeMessageEvent) => {
+            if (controllerLearn) {
+                configDispatch(setControls(updateControls(configState.controls, controllerLearn, cc.controller.number)))
+                setControllerLearn(undefined)
+            }
+
+            const updateFns = {
+                bpm: (v: number) => configDispatch(setBpm(mapFrom01Linear(mapTo01Linear(v, 0, 127), 20, 360))),
+                voices: (v: number) => configDispatch(setNumVoices(Math.round(mapFrom01Linear(mapTo01Linear(v, 0, 127), 1, 5)))),
+                voiceSplits: range(configState.numVoices).map((voice) => ({
+                    min: (v: number) => configDispatch(
+                        setVoiceSplitMin({
+                            index: voice,
+                            value: mapFrom01Linear(mapTo01Linear(v, 0, 127), 0, 84)    
+                        }
+                    )),
+                    max: (v: number) => configDispatch(
+                        setVoiceSplitMax({
+                            index: voice,
+                            value: mapFrom01Linear(mapTo01Linear(v, 0, 127), 0, 84)
+                        }
+                    )),
+                })),
+                modFuncs: configState.modFuncs.map(
+                    (_, idx) => (v: number) => configDispatch(
+                        updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -10, 10)})
+                    )
+                ),
+                changeView: (n: number) => {
+                    if (n === 127) {
+                        setView(v => v === views.details ? views.main : views.details)
+                    }
+                },
+                play: (n: number) => {
+                    if (n === 127) {
+                        playerRef.current?.play()
+                    }
+                },
+                stop: (n: number) => {
+                    if (n === 127) {
+                    playerRef.current?.stop() 
+                   }
+                }
+            }
+
+            handleCCUpdate(cc, configState.controls, updateFns)
+        }
+
+        const input = WebMidi.inputs[configState.controller]
+        
+        input && input.channels[1].addListener('controlchange', handleCC) 
+
+        return () => {
+            input && input.channels[1].removeListener('controlchange', handleCC)
+        }
+    }, [configState.controller, controllerLearn, configState.controls, configState.voiceSplits, configState.numVoices, configState.modFuncs, playerRef.current]) 
 
     useEffect(() => {
         (async () => {
             let fns = await getModFuncs()
-            setModFuncs(fns)
+            configDispatch(setControls({...configState.controls, modFuncs: fns.map(x => NONE_ASSIGNED)}))
+            configDispatch(setModFuncs(unionBy(configState.modFuncs, fns, "name")))
 
-            let m = await init(melody.dna, fns)
-            setMelody(m)
+            let m: Melody;
 
-            m = await evolve(m.dna, xGens, children, fns)
-            setNextMelody(m)
+            if (!melodyState.melody) {
+                m = await init(createRandomMelody(configState.melodyLen), fns)
+                melodyDispatch(setMelody(m))
+            } else {
+                m = melodyState.melody
+            }
+
+            if (!melodyState.nextMelody) {
+                m = await evolve(m.dna, configState.xGens, configState.children, fns)
+                melodyDispatch(setNextMelody(m))
+            }
         })()
     }, [])
 
-    const restart =  async () =>  {
-        const newMelody = await init(createRandomMelody(melodyLen), modFuncs)
-        setMelody(newMelody)
+    const reset =  async () =>  {
+        const newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs)
+        melodyDispatch(setMelody(newMelody))
 
-        const m = await evolve(newMelody.dna, xGens, children, modFuncs)
-        setNextMelody(m)
+        const m = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs)
+        melodyDispatch(setNextMelody(m))
     }
 
     return (
+        <MelodyContext.Provider value={{state: melodyState, dispatch: melodyDispatch}}>
+        <ConfigContext.Provider value={{state: configState, dispatch: configDispatch}}>
         <div>
-            <Stack  alignItems="center" marginBottom={1} gap={2} direction="row">
-                <Player
-                    ref={playerRef}
-                    melody={melody.notes || []}
-                    instrument={{channel, output}}
-                    metronome={{channel: metronomeChannel, output: metronomeOutput, enabled: metronome}}
-                    bpm={melody.bpm}
-                    beforeLoop={async () => {
-                        if (loading) {
-                            return
-                        }
+            <Player
+                ref={playerRef}
+                melody={melodyState.melody?.notes || []}
+                instrument={{channel: configState.channel, output: configState.output}}
+                metronome={{channel: configState.metronomeChannel, output: configState.metronomeOutput, enabled: configState.metronome}}
+                bpm={configState.bpm /*melody.bpm*/}
+                numVoices={Math.round(configState.numVoices)}
+                voiceSplits={configState.voiceSplits}
+                trigger={setTrigger}
+                beforeLoop={async () => {
+                    if (loading) {
+                        return
+                    }
 
-                        setLoading(true)
-                        const nextToPlay = nextMelody || melody
-                        setMelody(nextToPlay)
-            
-                        const m = await evolve(nextToPlay.dna, xGens, children, modFuncs)
-                        setNextMelody(m)
-                        setLoading(false)
-                    }}
+                    setLoading(true)
+                    const nextToPlay = melodyState.nextMelody || melodyState.melody
+                    melodyDispatch(setMelody(nextToPlay!))
+        
+                    const m = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs)
+                    melodyDispatch(setNextMelody(m))
+                    setLoading(false)
+                }}
+            />
+            {view == views.details ? (
+                <Details
+                    trigger={trigger}
+                    changeView={setView}
+                    // melody={melody}
+                    // nextMelody={nextMelody}
+                    playerRef={playerRef}
+                    reset={reset}
+                    controllerLearn={controllerLearn}
+                    setControllerLearn={setControllerLearn}
                 />
-                <ButtonGroup
-                    variant="contained"
-                    aria-label="outlined primary button group"
-                >
-                    <IconButton
-                        color={
-                            playerRef.current?.isPlaying()
-                                ? 'primary'
-                                : 'default'
-                        }
-                        onClick={() => {
-                            playerRef.current?.stop();
-                            playerRef.current?.play();
-                        }}
-                    >
-                        <PlayArrow />
-                    </IconButton>
-                    <IconButton
-                        onClick={() => {
-                            
-                            playerRef.current?.stop();
-                        }}
-                    >
-                        <StopIcon />
-                    </IconButton>
-                </ButtonGroup>
-                <Config
-                    output={output} setOutput={setOutput} channel={channel} setChannel={setChannel}
-                    metronomeOutput={metronomeOutput} setMetronomeOutput={setMetronomeOutput} metronomeChannel={metronomeChannel} setMetronomeChannel={setMetronomeChannel}
-                    metronome={metronome} setMetronome={setMetronome}
+            ) : (
+                <Main
+                    trigger={trigger}
+                    notes={notes}
+                    setNotes={setNotes}
+                    changeView={setView}
+                    player={playerRef.current}
+                    melody={melodyState.melody?.notes}
+                    controllerLearn={controllerLearn}
+                    setControllerLearn={setControllerLearn}
                 />
-                <TextField label={"Children per gen"} type='number' value={children} onInput={(e: React.ChangeEvent<HTMLInputElement>) => setChildren(parseInt(e.target.value))}/>
-                <TextField label={"X-gens"} type='number' value={xGens} onInput={(e: React.ChangeEvent<HTMLInputElement>) => setxGens(parseInt(e.target.value))}/>
-                <TextField label={"Note count"} type='number' value={melodyLen} onInput={(e: React.ChangeEvent<HTMLInputElement>) => setMelodyLen(parseInt(e.target.value))}/>
-                <p><label>notes:</label> {melody.notes.length}</p>
-                {/* <p><label>counts:</label> {melody.notes.length ? melody.notes[melody.notes.length - 1].position / 500 : 0}</p>     */}
-                <Button onClick={restart}>Reset</Button>
-                <div>score: {melody.score}</div>
-                <div>bpm: {melody.bpm}</div>
-            </Stack>
-            <Stack>
-                {modFuncs.map((x, idx) => <ModFunc key={idx} idx={idx} func={x} update={updateModFunc}/>)}
-            </Stack>
-            <Stack>
-                {melody.notes.map(n => n.length).reduce((acc, cur) => acc+cur, 0)/melody.notes.length}
-            </Stack>
-            <Stack>
-                {melody.notes.map(n =>notes[ Math.round(n.pitch / 10) % 12]).join(" | ")}
-            </Stack>
-            <Stack>
-                {getKey(melody.notes, 'cur')}
-            </Stack>
-            <Stack>
-                {nextMelody?.notes.map(n => notes[Math.round(n.pitch / 10) % 12]).join(" | ")}
-            </Stack>
-            <Stack>
-                {getKey(nextMelody?.notes, 'next')}
-            </Stack>
-            <Stack>
-            len cur:{calcMelodyLength(melody?.notes || [])}
-            </Stack>
-            <Stack>
-            len next:{calcMelodyLength(nextMelody?.notes || [])}
-            </Stack>
-
+            )}
         </div>
+        </ConfigContext.Provider>
+        </MelodyContext.Provider>
     );
 };
 
 export default App;
+
+function setModFunc(fns: ModFunc[]): import("redux").AnyAction {
+    throw new Error('Function not implemented.');
+}
 

@@ -1,25 +1,34 @@
 import { Note } from "./note"
 
-export interface Melody {notes: Note[], dna: string, score: number, bpm: number}
+export interface Melody {notes: Note[], dna: string, scores_per_func: number[], score: number, bpm: number}
 
 export const init = async (dna: string = '', modFuncs: ModFunc[]) : Promise<Melody> => {
-    return (await fetch('http://localhost:8080/init', {method: 'POST', body: JSON.stringify({dna, modFuncs})}).then(x => x.json())) as Melody
-    // return (await fetch('http://localhost:7777/evolve', {method: 'POST', body: dna}).then(x => x.json())) as Melody
+    const _modFuncs = modFuncs.map(x => ({...x, weight: Math.round(x.weight)}))
+    return (await fetch(
+        'http://localhost:8080/init', {
+            method: 'POST',
+            body: JSON.stringify({dna, modFuncs: _modFuncs})
+        }).then(
+            x => x.json()
+        )) as Melody
 } 
 export const evolve = async (dna: string = '', xGens: number, children: number, modFuncs: ModFunc[]) : Promise<Melody> => {
-    return (await fetch('http://localhost:8080/evolve', {method: 'POST', body: JSON.stringify({dna, x_gens: xGens, children, modFuncs})}).then(x => x.json())) as Melody
-    // return (await fetch('http://localhost:7777/evolve', {method: 'POST', body: dna}).then(x => x.json())) as Melody
+    const _modFuncs = modFuncs.map(x => ({...x, weight: Math.round(x.weight)}))
+    return (await fetch(
+        'http://localhost:8080/evolve', {
+            method: 'POST',
+            body: JSON.stringify({dna, x_gens: xGens, children, modFuncs: _modFuncs})
+        }).then(
+            x => x.json()
+        )) as Melody
 } 
 
 export interface ModFunc {
     name: string;
     weight: number;
+    params: number[];
 }
 
 export const getModFuncs = async (): Promise<ModFunc[]> => {
     return (await fetch('http://localhost:8080/get_funcs').then(x => x.json())) as ModFunc[]
-}
-
-export const updateModFunc = async (val: {idx: number, weight: number}): Promise<ModFunc[]> => {
-    return (await fetch('http://localhost:8080/update_funcs', {method: 'POST', body: JSON.stringify(val)}).then(x => x.json())) as ModFunc[]
 }
