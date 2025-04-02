@@ -101,7 +101,7 @@ const Main: FC<MainProps> = ({
                     {range(Math.round(configState.numVoices)).map((voice) => {
                         const clKBaseKeyMin = `voiceSplits.${voice}.min`
                         const clKBaseKeyMax = `voiceSplits.${voice}.max`
-                        return <div>
+                        return <div key={voice}>
                                 <div style={{color: 'white', textAlign: 'center', position: 'relative'}}>
                                     <div style={{
                                         width: '100%',

@@ -12,7 +12,7 @@ import { handleCCUpdate, NONE_ASSIGNED, updateControls } from './lib/controller'
 import { mapFrom01Linear, mapTo01Linear } from '@dsp-ts/math';
 import ConfigReducer, { configSlice, setBpm, setControls, setModFuncs, setNumVoices, setVoiceSplitMax, setVoiceSplitMin, updateModFunc } from './state/reducer/config';
 import { ConfigContext, MelodyContext } from './state/context';
-import MelodyReducer, { melodySlice, setMelody, setNextMelody } from './state/reducer/melody';
+import MelodyReducer, { melodySlice, resetBuffer, setMelody, setNextMelody } from './state/reducer/melody';
 
 export enum views {
     details = 'details',
@@ -79,8 +79,8 @@ const App: FC = () => {
                     )),
                 })),
                 modFuncs: configState.modFuncs.map(
-                    (_, idx) => (v: number) => configDispatch(
-                        updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -10, 10)})
+                    (func, idx) => (v: number) => configDispatch(
+                        updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -10, 10), params: func.params})
                     )
                 ),
                 changeView: (n: number) => {
@@ -140,6 +140,8 @@ const App: FC = () => {
 
         const m = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs)
         melodyDispatch(setNextMelody(m))
+        melodyDispatch(resetBuffer())
+
     }
 
     return (

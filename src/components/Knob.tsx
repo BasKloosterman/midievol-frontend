@@ -173,7 +173,7 @@ export const Knob : FC<KnobProps> = ({value, setValue, min, max, displayValue, l
             mapFrom01={mapFrom01Linear}
             onValueRawChange={setValue}
         >
-            <div style={{transition: 'background 250ms ease', width: 50, position: 'relative', height: 50, background: color, borderRadius: '50%', rotate: `${angle}deg`, border: '1px solid black'}}>
+            <div style={{transition: 'background 250ms ease', width: 50, position: 'relative', height: 50, background: color, borderRadius: '50%', rotate: `${angle}deg`, border: '1px solid black'}} onDoubleClick={() => setValue(0)}>
               <div style={{width: 2, backgroundColor: 'black', transform: `translateX(25px)`, height: '25px'}}></div>
             </div>
         </KnobHeadless>

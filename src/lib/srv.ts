@@ -3,7 +3,7 @@ import { Note } from "./note"
 export interface Melody {notes: Note[], dna: string, scores_per_func: number[], score: number, bpm: number}
 
 export const init = async (dna: string = '', modFuncs: ModFunc[]) : Promise<Melody> => {
-    const _modFuncs = modFuncs.map(x => ({...x, weight: Math.round(x.weight)}))
+    const _modFuncs = modFuncs.map(x => ({...x, weight: x.weight}))
     return (await fetch(
         'http://localhost:8080/init', {
             method: 'POST',
@@ -13,7 +13,7 @@ export const init = async (dna: string = '', modFuncs: ModFunc[]) : Promise<Melo
         )) as Melody
 } 
 export const evolve = async (dna: string = '', xGens: number, children: number, modFuncs: ModFunc[]) : Promise<Melody> => {
-    const _modFuncs = modFuncs.map(x => ({...x, weight: Math.round(x.weight)}))
+    const _modFuncs = modFuncs.map(x => ({...x, weight: x.weight}))
     return (await fetch(
         'http://localhost:8080/evolve', {
             method: 'POST',

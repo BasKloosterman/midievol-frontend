@@ -94,13 +94,12 @@ export const configSlice = createSlice({
             }
             return state
         },
-        updateModFunc: (state, {payload: {idx, weight}}: PayloadAction<{idx: number, weight: number}>) => {
-            state.modFuncs = state.modFuncs.map((x, _idx) => _idx === idx ? {...x, weight} : x)
+        updateModFunc: (state, {payload: {idx, weight, params}}: PayloadAction<{idx: number, weight: number, params: number[]}>) => {
+            state.modFuncs = state.modFuncs.map((x, _idx) => _idx === idx ? {...x, weight, params} : x)
 
             return state
         },
         setModFuncs: (state, {payload}: PayloadAction<ModFunc[]>) => {
-            console.log('set', payload)
             state.modFuncs = payload
 
             return state

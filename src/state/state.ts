@@ -1,6 +1,7 @@
 import { createRandomMelody } from "../lib/base4";
 import { Controls, emptyControls } from "../lib/controller";
 import { Melody, ModFunc } from "../lib/srv"
+import RingBuffer, { RingBuf } from "../lib/ringbuf"
 
 export interface ConfigState {
     // Until bpm evo is implemented, just use the 'static' frontend BPM
@@ -65,14 +66,15 @@ export interface MelodyState {
     // Until bpm evo is implemented, just use the 'static' frontend BPM
     melody?: Melody;
     nextMelody?: Melody;
+    ringBuf: RingBuffer<Melody>;
 }
 
 // {dna: createRandomMelody(configState.melodyLen), notes: [], scores_per_func: [], score: -1, bpm: 90}
 
 const _initialMelodyState : MelodyState = {
     melody: undefined,
-    nextMelody: undefined
-             
+    nextMelody: undefined,
+    ringBuf: new RingBuffer(20)
 }
 
 export const initialMelodyState = (init=false) : MelodyState => init ? {..._initialMelodyState} : loadMelodyStateFromLocalStorage()
@@ -81,7 +83,18 @@ export const initialMelodyState = (init=false) : MelodyState => init ? {..._init
 export const loadMelodyStateFromLocalStorage = () : MelodyState => {
     try {
       const savedState = localStorage.getItem("melodyState");
-      return savedState ? JSON.parse(savedState) : _initialMelodyState;
+      if (!savedState) {
+        return _initialMelodyState;
+      }
+      const initialState = JSON.parse(savedState)
+      const ringBuf = new RingBuffer(20)
+      
+      if (initialState.ringBuf) {
+        ringBuf.fromSaved(initialState.ringBuf as any)
+        delete(initialState.ringBuf)
+      }
+      
+      return {ringBuf, ...initialState}
     } catch (err) {
       console.error("Error loading state:", err);
       return _initialMelodyState;

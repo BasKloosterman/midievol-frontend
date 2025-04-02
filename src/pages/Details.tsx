@@ -5,7 +5,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import { Stack, ButtonGroup, IconButton, TextField, Button, Paper, Checkbox, FormControlLabel } from "@mui/material";
 import { FC, useContext } from "react";
 import { views } from "../App";
-import { frames, Note } from "../lib/note";
+import { frames, Note, numToNote } from "../lib/note";
 import { Melody, ModFunc } from "../lib/srv";
 import { PlayerRef } from '../components/Player';
 import Config, { ConfigProps } from '../components/Config';
@@ -20,6 +20,8 @@ import FileImportButton, { downloadJSON } from '../lib/file';
 import { Controls, emptyControls } from '../lib/controller';
 import { ConfigState, initialConfigState, MelodyState } from '../state/state';
 import { loadMelodyState } from '../state/reducer/melody';
+import History from '../components/History';
+import { notes } from '../lib/keys';
 
 export const calcMelodyLength = (melody: Note[]) => {
     if (!melody.length) {
@@ -195,17 +197,49 @@ const Details : FC<DetailsProps> = ({
         <Stack style={{display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', }} rowGap={1} marginTop={1} padding={3}>
             {configState.modFuncs.map((x, idx) => {
                 const clKey = `modFuncs.${idx}`
-                return <ModFuncRegulator
-                    color={controllerLearn === clKey ? 'red' : undefined}
-                    score={melodyState.melody?.scores_per_func[idx] || 0}
-                    key={clKey}
-                    idx={idx}
-                    func={x}
-                    update={(modFunc) => configDispatch(updateModFunc(modFunc))}
-                    onLongPress={() => setControllerLearn(clKey)}
-                />
+                return <>
+                        <ModFuncRegulator
+                            color={controllerLearn === clKey ? 'red' : undefined}
+                            score={melodyState.melody?.scores_per_func[idx] || 0}
+                            key={clKey}
+                            idx={idx}
+                            func={x}
+                            update={(modFunc) => configDispatch(updateModFunc({...modFunc, params: x.params}))}
+                            onLongPress={() => setControllerLearn(clKey)}
+                        />
+                        {
+                            x.params.map((param, paramIdx) => {
+                                let range = x.name === 'score_measure_for_chord' ? [0, 84] : [0.2, 8]
+                                const displayValue = x.name === 'score_measure_for_chord' ? (v: number) => numToNote(Math.round(v)) : (x: number) => x.toFixed(2)
+                                return <Knob
+                                    id={''}
+                                    key={`param-${idx}-${paramIdx}`}
+                                    color={"#00b5ff"}
+                                    textColor="black"
+                                    value={param}
+                                    //  setValue={(n) => {
+                                    //      update({idx, weight: n}) 
+                                    //  }}
+                                    min={range[0]} max={range[1]} label={'test'}
+                                    displayValue={displayValue}
+                                    mapToAngle={v => mapTo01Linear(v, range[0], range[1])}
+                                    setValue={(n) => configDispatch(updateModFunc({
+                                        idx,
+                                        weight: x.weight,
+                                        params: x.params.map((param, pidx) => pidx === paramIdx ? n : param)
+                                    }))}
+                                />
+                            })
+                        }
+                    </>
+
             })}
+            
+                  
         </Stack>
+    </Paper>
+    <Paper elevation={2} >
+        <History/>
     </Paper>
     {/* <Stack>
         {melody.notes.map(n => n.length).reduce((acc, cur) => acc+cur, 0)/melody.notes.length}

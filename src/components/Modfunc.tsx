@@ -25,8 +25,8 @@ const ModFuncRegulator: FC<ModFuncProps> = ({func, update, idx, score, onLongPre
                     update({idx, weight: n}) 
                 }}
                 min={-10} max={10} label={`${name}: ${score.toFixed(3)}`} id={name}
-                displayValue={x => Math.round(x).toFixed(0)}
-                mapToAngle={v => mapTo01Linear(Math.round(v), -10, 10)}
+                displayValue={x => x.toFixed(2)}
+                mapToAngle={v => mapTo01Linear(v, -10, 10)}
                 onLongPress={onLongPress}
             />
             {/* <Slider

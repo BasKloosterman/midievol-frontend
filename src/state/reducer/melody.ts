@@ -17,15 +17,20 @@ export const melodySlice = createSlice({
     reducers: {
         setMelody: (state, {payload}: PayloadAction<Melody>) => {
             state.melody = payload
+            state.ringBuf.add(payload)
             return state
         },
         setNextMelody: (state, {payload}: PayloadAction<Melody>) => {
             state.nextMelody = payload
             return state
         },
-        loadMelodyState: (state, {payload}: PayloadAction<MelodyState>) => {
+        resetBuffer: (state) => {
+            state.ringBuf.reset()
+            return state
+        },
+        loadMelodyState: (_, {payload}: PayloadAction<MelodyState>) => {
             return payload
-        }
+        },
     }
 })
 
@@ -34,7 +39,8 @@ const MelodyReducer = melodySlice.reducer
 export const {
     loadMelodyState,
     setMelody,
-    setNextMelody
+    setNextMelody,
+    resetBuffer
 } = melodySlice.actions
 
 
