@@ -1,10 +1,23 @@
 import { Dispatch, forwardRef, SetStateAction, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { Note, frames } from "../lib/note";
-import { WebMidi } from "webmidi";
+import { Output, WebMidi } from "webmidi";
 import { Clock } from "../lib/clock";
 import Emitter, { events } from "../lib/eventemitter";
 import { calcMelodyLength } from "../pages/Details";
 import { range } from "lodash";
+
+function panic(output: Output, channel = 0) {
+    // Kill all notes
+    for (let note = 0; note <= 127; note++) {
+      output.sendNoteOff(note);
+    }
+  
+    // Sustain off
+    output.sendControlChange(64, 0);
+  
+    // Reset all controllers
+    output.sendControlChange(121, 0);
+  }
 
 
 export interface PlayerProps {
@@ -81,9 +94,8 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
                 playing.current = false
 
                 let output = webMidi.current.outputs[propsref.current.instrument.output];
-                let channel = output.channels[propsref.current.instrument.channel];
 
-                channel.sendAllNotesOff();
+                panic(output)
                 props.trigger(t => t+1)
             },
             pauze: () => {
@@ -127,18 +139,13 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
 
             m.push(element)
         }
-        
-        if (pos.current > maxTicks && !loop) {
-            stop()
-            return
-        }
 
         // Detect start new loop
         if (loop && pos.current / frames >= loopRange) {
             pos.current = 0         
              // Detect start new loop
             propsref.current.beforeLoop()
-            webMidi.current.outputs[propsref.current.metronome.output].sendAllNotesOff()
+            panic(webMidi.current.outputs[propsref.current.metronome.output])
             return
         }
 
