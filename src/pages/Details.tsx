@@ -19,9 +19,10 @@ import { Download, RestartAlt, Save, Upload } from '@mui/icons-material';
 import FileImportButton, { downloadJSON } from '../lib/file';
 import { Controls, emptyControls } from '../lib/controller';
 import { ConfigState, initialConfigState, MelodyState } from '../state/state';
-import { loadMelodyState } from '../state/reducer/melody';
+import { resetBuffer, setMelody, setNextMelody } from '../state/reducer/melody';
 import History from '../components/History';
 import { notes } from '../lib/keys';
+import { AnyAction } from '@reduxjs/toolkit';
 
 export const calcMelodyLength = (melody: Note[]) => {
     if (!melody.length) {
@@ -51,7 +52,11 @@ const Details : FC<DetailsProps> = ({
     reset, setControllerLearn, controllerLearn
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
-    const {state: melodyState, dispatch: melodyDispatch} = useContext(MelodyContext)!
+    const {state: melodyState, dispatch: melodyDispatch_} = useContext(MelodyContext)!
+
+    const melodyDispatch = (action: AnyAction) => {
+        melodyDispatch_(action)
+    }
 
     return <div>
     <Stack  alignItems="center" marginBottom={1} gap={2} direction="row">
@@ -125,7 +130,9 @@ const Details : FC<DetailsProps> = ({
             <FileImportButton
                 variant='outlined'
                 onFileLoaded={(c: MelodyState) => {
-                    melodyDispatch(loadMelodyState(c))
+                    melodyDispatch(setNextMelody(c.nextMelody!))
+                    melodyDispatch(setMelody(c.melody!))
+                    melodyDispatch(resetBuffer(c.ringBuf!))
                 }}
                 startIcon={<Upload />}
             >

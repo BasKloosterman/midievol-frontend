@@ -140,7 +140,7 @@ const App: FC = () => {
 
         const m = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs)
         melodyDispatch(setNextMelody(m))
-        melodyDispatch(resetBuffer())
+        melodyDispatch(resetBuffer(null))
 
     }
 

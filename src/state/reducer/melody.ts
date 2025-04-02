@@ -2,13 +2,17 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit'
 import { MelodyState, initialMelodyState, saveMelodyStateToLocalStorage } from "../state";
 import { Melody } from '../../lib/srv';
+import RingBuffer from '../../lib/ringbuf';
+
+
 
 export const melodySlice = createSlice({
     name: 'melody',
     initialState: initialMelodyState(),
     extraReducers: (builder) => {
         builder.addMatcher(
-          () => true, // Matches ALL actions
+            (action) =>
+                ['melody/setMelody', 'melody/setNextMelody', 'melody/resetBuffer'].includes(action.type),
           (state, action) => {
             saveMelodyStateToLocalStorage(state)
           }
@@ -24,12 +28,15 @@ export const melodySlice = createSlice({
             state.nextMelody = payload
             return state
         },
-        resetBuffer: (state) => {
-            state.ringBuf.reset()
+        resetBuffer: (state, {payload}: PayloadAction<any>) => {
+            if (payload) {
+                const ringBuf = new RingBuffer<Melody>(20)
+                ringBuf.fromSaved(payload)
+                state.ringBuf = ringBuf
+            } else {
+                state.ringBuf.reset()
+            }
             return state
-        },
-        loadMelodyState: (_, {payload}: PayloadAction<MelodyState>) => {
-            return payload
         },
     }
 })
@@ -37,7 +44,6 @@ export const melodySlice = createSlice({
 const MelodyReducer = melodySlice.reducer
 
 export const {
-    loadMelodyState,
     setMelody,
     setNextMelody,
     resetBuffer
