@@ -94,8 +94,8 @@ export const configSlice = createSlice({
             }
             return state
         },
-        updateModFunc: (state, {payload: {idx, weight, params}}: PayloadAction<{idx: number, weight: number, params: ModFuncParam[]}>) => {
-            state.modFuncs = state.modFuncs.map((x, _idx) => _idx === idx ? {...x, weight, params} : x)
+        updateModFunc: (state, {payload: {idx, weight, params, voices}}: PayloadAction<{idx: number, weight: number, params: ModFuncParam[], voices: [boolean, boolean, boolean]}>) => {
+            state.modFuncs = state.modFuncs.map((x, _idx) => _idx === idx ? {...x, weight, params, voices} : x)
 
             return state
         },

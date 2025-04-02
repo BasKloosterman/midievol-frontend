@@ -7,7 +7,7 @@ export const init = async (dna: string = '', modFuncs: ModFunc[], voices: {min: 
     return (await fetch(
         'http://localhost:8080/init', {
             method: 'POST',
-            body: JSON.stringify({dna, modFuncs: _modFuncs, voices})
+            body: JSON.stringify({dna, modFuncs: _modFuncs, voices: {min: Math.round(voices.min), max: Math.round(voices.max)}})
         }).then(
             x => x.json()
         )) as Melody
@@ -17,7 +17,7 @@ export const evolve = async (dna: string = '', xGens: number, children: number, 
     return (await fetch(
         'http://localhost:8080/evolve', {
             method: 'POST',
-            body: JSON.stringify({dna, x_gens: xGens, children, modFuncs: _modFuncs, voices})
+            body: JSON.stringify({dna, x_gens: xGens, children, modFuncs: _modFuncs, voices: {min: Math.round(voices.min), max: Math.round(voices.max)}})
         }).then(
             x => x.json()
         )) as Melody
@@ -29,6 +29,7 @@ export interface ModFunc {
     name: string;
     weight: number;
     params: ModFuncParam[];
+    voices: [boolean, boolean, boolean];
 }
 
 export const getModFuncs = async (): Promise<ModFunc[]> => {

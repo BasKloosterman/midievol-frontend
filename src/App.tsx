@@ -111,7 +111,7 @@ const App: FC = () => {
                 },
                 modFuncs: configState.modFuncs.map(
                     (func, idx) => (v: number) => configDispatch(
-                        updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -10, 10), params: func.params})
+                        updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -10, 10), params: func.params, voices: func.voices})
                     )
                 ),
                 changeView: (n: number) => {

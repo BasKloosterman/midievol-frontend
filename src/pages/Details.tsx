@@ -214,9 +214,23 @@ const Details : FC<DetailsProps> = ({
                             key={clKey}
                             idx={idx}
                             func={x}
-                            update={(modFunc) => configDispatch(updateModFunc({...modFunc, params: x.params}))}
+                            update={(modFunc) => configDispatch(updateModFunc({...modFunc, params: x.params, voices: x.voices}))}
                             onLongPress={() => setControllerLearn(clKey)}
                         />
+                        <div style={{display: 'flex', justifyContent: 'center', gap: 10}}>
+                            {x.voices.map((voice, voiceIdx) => {
+                                return <Checkbox checked={voice} onChange={(n) => {
+                                    configDispatch(
+                                        updateModFunc({
+                                            idx,
+                                            weight: x.weight,
+                                            params: x.params,
+                                            voices: x.voices.map((voice, pidx) => pidx === voiceIdx ? n.target.checked : voice) as [boolean, boolean, boolean]
+                                        })
+                                    )
+                                }}/>
+                            })}
+                        </div>
                         <div style={{display: 'flex', justifyContent: x.params.length > 1 ? 'space-between' : 'center'}}>
                         {
                             x.params.map((param, paramIdx) => {
@@ -240,7 +254,8 @@ const Details : FC<DetailsProps> = ({
                                     setValue={(n) => configDispatch(updateModFunc({
                                         idx,
                                         weight: x.weight,
-                                        params: x.params.map((param, pidx) => pidx === paramIdx ? {...param, value: n} : param)
+                                        params: x.params.map((param, pidx) => pidx === paramIdx ? {...param, value: n} : param),
+                                        voices: x.voices
                                     }))}
                                 />
                             })
