@@ -101,10 +101,9 @@ export const loadMelodyStateFromLocalStorage = () : MelodyState => {
     }
   };
 
-// Helper function to load state from localStorage
+// Helper function to save state to localStorage
 export const saveMelodyStateToLocalStorage = (state: MelodyState) => {
     try {
-      console.log('save', JSON.parse(JSON.stringify(state.melody?.scores_per_func)))
       localStorage.setItem("melodyState", JSON.stringify(state))
     } catch (err) {
       console.error("Error save state:", err);

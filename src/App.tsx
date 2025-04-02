@@ -202,7 +202,3 @@ const App: FC = () => {
 
 export default App;
 
-function setModFunc(fns: ModFunc[]): import("redux").AnyAction {
-    throw new Error('Function not implemented.');
-}
-

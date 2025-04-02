@@ -55,6 +55,7 @@ const Details : FC<DetailsProps> = ({
     const {state: melodyState, dispatch: melodyDispatch_} = useContext(MelodyContext)!
 
     const melodyDispatch = (action: AnyAction) => {
+        console.log('dispatch!', action)
         melodyDispatch_(action)
     }
 
