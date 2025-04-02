@@ -13,6 +13,7 @@ import { mapFrom01Linear, mapTo01Linear } from '@dsp-ts/math';
 import ConfigReducer, { configSlice, setBpm, setControls, setModFuncs, setNumVoices, setVoiceSplitMax, setVoiceSplitMin, updateModFunc } from './state/reducer/config';
 import { ConfigContext, MelodyContext } from './state/context';
 import MelodyReducer, { melodySlice, resetBuffer, setMelody, setNextMelody } from './state/reducer/melody';
+import { SnackbarProvider, useSnackbar } from 'notistack';
 
 export enum views {
     details = 'details',
@@ -25,6 +26,9 @@ const App: FC = () => {
     const [loading, setLoading]= useState(false)
     const playerRef = useRef<PlayerRef>(null);
     const [view, setView] = useState(views.main);
+    const {enqueueSnackbar} = useSnackbar()
+
+
 
     // Used to trigger player update and cause rerender
     const [trigger, setTrigger] = useState(0);
@@ -114,34 +118,45 @@ const App: FC = () => {
 
     useEffect(() => {
         (async () => {
+            try {
             let fns = await getModFuncs()
             configDispatch(setControls({...configState.controls, modFuncs: fns.map(x => NONE_ASSIGNED)}))
             configDispatch(setModFuncs(unionBy(configState.modFuncs, fns, "name")))
 
-            let m: Melody;
-
-            if (!melodyState.melody) {
-                m = await init(createRandomMelody(configState.melodyLen), fns)
-                melodyDispatch(setMelody(m))
-            } else {
-                m = melodyState.melody
-            }
-
-            if (!melodyState.nextMelody) {
-                m = await evolve(m.dna, configState.xGens, configState.children, fns)
-                melodyDispatch(setNextMelody(m))
+                let m: Melody;
+    
+                if (!melodyState.melody) {
+                    m = await init(createRandomMelody(configState.melodyLen), fns)
+                    melodyDispatch(setMelody(m))
+                } else {
+                    m = melodyState.melody
+                }
+    
+                if (!melodyState.nextMelody) {
+                    m = await evolve(m.dna, configState.xGens, configState.children, fns)
+                    melodyDispatch(setNextMelody(m))
+                }
+            
+            } catch (err) {
+                enqueueSnackbar(`An error has occured: ${err}`, { variant: 'error' });
+                console.error(err)
             }
         })()
     }, [])
 
     const reset =  async () =>  {
-        const newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs)
-        melodyDispatch(setMelody(newMelody))
+        try {
+            const newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs)
+            melodyDispatch(setMelody(newMelody))
+    
+            const m = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs)
+            melodyDispatch(setNextMelody(m))
+            melodyDispatch(resetBuffer(null))
+        } catch (err) {
+            enqueueSnackbar(`An error has occured: ${err}`, { variant: 'error' });
+            console.error(err)
 
-        const m = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs)
-        melodyDispatch(setNextMelody(m))
-        melodyDispatch(resetBuffer(null))
-
+        }
     }
 
     return (
@@ -163,12 +178,19 @@ const App: FC = () => {
                     }
 
                     setLoading(true)
-                    const nextToPlay = melodyState.nextMelody || melodyState.melody
-                    melodyDispatch(setMelody(nextToPlay!))
-        
-                    const m = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs)
-                    melodyDispatch(setNextMelody(m))
-                    setLoading(false)
+                    try {
+                        const nextToPlay = melodyState.nextMelody || melodyState.melody
+                        melodyDispatch(setMelody(nextToPlay!))
+            
+                        const m = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs)
+                        melodyDispatch(setNextMelody(m))
+                        enqueueSnackbar(`Melody updated!`, { variant: 'success' });
+                    } catch (err) {
+                        enqueueSnackbar(`An error has occured: ${err}`, { variant: 'error' });
+                        console.error(err)
+                    } finally {
+                        setLoading(false)
+                    }
                 }}
             />
             {view == views.details ? (

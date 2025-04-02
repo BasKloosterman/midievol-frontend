@@ -44,8 +44,6 @@ const History : FC = () => {
         return () => window.removeEventListener('resize', updateWidth)
     })
 
-    console.log(graphData)
-
     return (<div style={{marginTop: 25, paddingTop: 25}}>
         {graphData.map(funcData => {
             return <div key={funcData[0].func}>
