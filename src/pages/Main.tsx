@@ -14,7 +14,9 @@ import { range } from "lodash";
 import { colorMap } from "../lib/color";
 import { LearnIconButton } from "../components/LearnButton";
 import { ConfigContext } from "../state/context";
-import { setNumVoices, setVoiceSplitMax, setVoiceSplitMin } from "../state/reducer/config";
+import { setVoiceSplitMax, setVoiceSplitMin } from "../state/reducer/config";
+import { GlobalVoiceControl } from "../components/GlobalVoiceControl";
+
 
 
 interface MainProps {
@@ -85,76 +87,7 @@ const Main: FC<MainProps> = ({
                 </ButtonGroup>
                 </div>
                 <div style={{display: 'flex', gap: 35}}>
-                    <Knob
-                        color={controllerLearn === 'voices' ? 'red' : undefined}
-                        textColor="white"
-                        label='voices'
-                        id='voices'
-                        value={configState.numVoices}
-                        setValue={(v) => configDispatch(setNumVoices(v))}
-                        min={1}
-                        max={5}
-                        displayValue={v => Math.round(v).toFixed(0)}
-                        mapToAngle={v => mapTo01Linear(Math.round(v), 1, 5)}
-                        onLongPress={() => setControllerLearn('voices')}
-                    />
-                    {range(Math.round(configState.numVoices)).map((voice) => {
-                        const clKBaseKeyMin = `voiceSplits.${voice}.min`
-                        const clKBaseKeyMax = `voiceSplits.${voice}.max`
-                        return <div key={voice}>
-                                <div style={{color: 'white', textAlign: 'center', position: 'relative'}}>
-                                    <div style={{
-                                        width: '100%',
-                                        height: 5,
-                                        position: 'absolute',
-                                        top: 10,
-                                        borderTop: '1px solid white', borderLeft: '1px solid white', borderRight: '1px solid white'}}></div>
-                                    <div style={{
-                                        background: 'black',
-                                        zIndex: 10,
-                                        position: 'relative',
-                                        display: 'inline-block',
-                                        padding: '0 5px'
-                                    }}>
-                                        voice {voice + 1}
-                                    </div>
-                                </div>
-                                <div style={{display: 'flex', gap: 10}}>
-                                    <Knob
-                                        textColor="white"
-                                        color={controllerLearn === clKBaseKeyMin ? 'red' : `rgba(${colorMap[voice]}, 1)`}
-                                        label='min'
-                                        id={`voice-${voice+1}-min`}
-                                        value={configState.voiceSplits[voice][0]}
-                                        setValue={(value) => {
-                                            configDispatch(setVoiceSplitMin({index: voice, value}))
-                                            // setVoiceSplits([...(voiceSplits.slice(0,voice)), [val, voiceSplits[voice][1]], ...(voiceSplits.slice(voice+1))])
-                                        }}
-                                        min={0}
-                                        max={84}
-                                        displayValue={v => numToNote(Math.round(v))}
-                                        mapToAngle={v => mapTo01Linear(v, 1, 84)}
-                                        onLongPress={() => setControllerLearn(clKBaseKeyMin)}
-                                    />
-                                    <Knob
-                                        textColor="white"
-                                        color={controllerLearn === clKBaseKeyMax ? 'red' : `rgba(${colorMap[voice]}, 1)`}
-                                        label='max'
-                                        id={`voice-${voice+1}-max`}
-                                        value={configState.voiceSplits[voice][1]}
-                                        setValue={(value) => {
-                                            configDispatch(setVoiceSplitMax({index: voice, value}))
-                                            // setVoiceSplits([...(voiceSplits.slice(0,voice)), [voiceSplits[voice][0], val], ...(voiceSplits.slice(voice+1))])
-                                        }}
-                                        min={0}
-                                        max={84}
-                                        displayValue={v => numToNote(Math.round(v))}
-                                        mapToAngle={v => mapTo01Linear(v, 1, 84)}
-                                        onLongPress={() => setControllerLearn(clKBaseKeyMax)}
-                                    />      
-                            </div>
-                        </div>
-                    })}
+                    <GlobalVoiceControl controllerLearn={controllerLearn} setControllerLearn={setControllerLearn}/>
                 </div>
             </div>
             <Visualization output={configState.output}/>

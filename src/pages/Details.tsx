@@ -23,6 +23,7 @@ import { resetBuffer, setMelody, setNextMelody } from '../state/reducer/melody';
 import History from '../components/History';
 import { notes } from '../lib/keys';
 import { AnyAction } from '@reduxjs/toolkit';
+import { GlobalVoiceControl } from '../components/GlobalVoiceControl';
 
 export const calcMelodyLength = (melody: Note[]) => {
     if (!melody.length) {
@@ -198,7 +199,8 @@ const Details : FC<DetailsProps> = ({
                 mapToAngle={v => mapTo01Linear(Math.round(v), 20, 360)}
                 onLongPress={() => setControllerLearn('bpm')}
             />
-            <FormControlLabel control={<Checkbox checked={configState.autoSetVoiceSplit} onChange={x => configDispatch(setAutoSetVoiceSplit(x.target.checked))}/>} label="Auto set voice splits" />
+            {/* <FormControlLabel control={<Checkbox checked={configState.autoSetVoiceSplit} onChange={x => configDispatch(setAutoSetVoiceSplit(x.target.checked))}/>} label="Auto set voice splits" /> */}
+            <GlobalVoiceControl light={true} controllerLearn={controllerLearn} setControllerLearn={setControllerLearn} />
         </Stack>
     </Paper>
     <Paper elevation={2} >

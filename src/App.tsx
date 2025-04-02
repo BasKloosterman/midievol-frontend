@@ -67,7 +67,7 @@ const App: FC = () => {
 
             const updateFns = {
                 bpm: (v: number) => configDispatch(setBpm(mapFrom01Linear(mapTo01Linear(v, 0, 127), 20, 360))),
-                voices: (v: number) => configDispatch(setNumVoices(Math.round(mapFrom01Linear(mapTo01Linear(v, 0, 127), 1, 5)))),
+                // voices: (v: number) => configDispatch(setNumVoices(Math.round(mapFrom01Linear(mapTo01Linear(v, 0, 127), 1, 5)))),
                 voiceSplits: range(configState.numVoices).map((voice) => ({
                     min: (v: number) => configDispatch(
                         setVoiceSplitMin({
@@ -82,6 +82,28 @@ const App: FC = () => {
                         }
                     )),
                 })),
+                voices: {
+                    min: (v: number) => {
+                        const value = mapFrom01Linear(mapTo01Linear(v, 0, 127), 0, 84)
+                        configDispatch(setVoiceSplitMax({index: 0, value: value -1}))
+                        configDispatch(setVoiceSplitMin({index: 1, value}))
+
+                        if (configState.voiceSplits[1][1] <= value) {
+                            configDispatch(setVoiceSplitMax({index: 1, value: value + 1}))
+                            configDispatch(setVoiceSplitMin({index: 2, value: value + 2}))
+                        }
+                    },
+                    max: (v: number) => {
+                        const value = mapFrom01Linear(mapTo01Linear(v, 0, 127), 0, 84)
+                        configDispatch(setVoiceSplitMax({index: 1, value: value -1}))
+                        configDispatch(setVoiceSplitMin({index: 2, value}))
+
+                        if (configState.voiceSplits[0][1] >= value) {
+                            configDispatch(setVoiceSplitMin({index: 1, value: value - 2}))
+                            configDispatch(setVoiceSplitMax({index: 0, value: value - 3}))
+                        }
+                    }
+                },
                 modFuncs: configState.modFuncs.map(
                     (func, idx) => (v: number) => configDispatch(
                         updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -10, 10), params: func.params})
