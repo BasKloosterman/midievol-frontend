@@ -13,7 +13,12 @@ import { mapFrom01Linear, mapTo01Linear } from '@dsp-ts/math';
 import ConfigReducer, { configSlice, setBpm, setControls, setModFuncs, setNumVoices, setVoiceSplitMax, setVoiceSplitMin, updateModFunc } from './state/reducer/config';
 import { ConfigContext, MelodyContext } from './state/context';
 import MelodyReducer, { melodySlice, resetBuffer, setMelody, setNextMelody } from './state/reducer/melody';
-import { SnackbarProvider, useSnackbar } from 'notistack';
+import { useSnackbar } from 'notistack';
+import { ConfigState } from './state/state';
+
+const calcVoices = (state: ConfigState) => {
+    return {min: state.voiceSplits[1][0], max: state.voiceSplits[2][0]}
+}
 
 export enum views {
     details = 'details',
@@ -148,14 +153,14 @@ const App: FC = () => {
                 let m: Melody;
     
                 if (!melodyState.melody) {
-                    m = await init(createRandomMelody(configState.melodyLen), fns)
+                    m = await init(createRandomMelody(configState.melodyLen), fns, calcVoices(configState))
                     melodyDispatch(setMelody(m))
                 } else {
                     m = melodyState.melody
                 }
     
                 if (!melodyState.nextMelody) {
-                    m = await evolve(m.dna, configState.xGens, configState.children, fns)
+                    m = await evolve(m.dna, configState.xGens, configState.children, fns, calcVoices(configState))
                     melodyDispatch(setNextMelody(m))
                 }
             
@@ -168,10 +173,10 @@ const App: FC = () => {
 
     const reset =  async () =>  {
         try {
-            const newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs)
+            const newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs, calcVoices(configState))
             melodyDispatch(setMelody(newMelody))
     
-            const m = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs)
+            const m = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState))
             melodyDispatch(setNextMelody(m))
             melodyDispatch(resetBuffer(null))
         } catch (err) {
@@ -204,7 +209,7 @@ const App: FC = () => {
                         const nextToPlay = melodyState.nextMelody || melodyState.melody
                         melodyDispatch(setMelody(nextToPlay!))
             
-                        const m = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs)
+                        const m = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState))
                         melodyDispatch(setNextMelody(m))
                         enqueueSnackbar(`Melody updated!`, { variant: 'success' });
                     } catch (err) {
