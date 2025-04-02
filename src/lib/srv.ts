@@ -23,10 +23,12 @@ export const evolve = async (dna: string = '', xGens: number, children: number, 
         )) as Melody
 } 
 
+export interface ModFuncParam {name: string, range: [number,number], value: number, type: 'note' | 'float'}
+
 export interface ModFunc {
     name: string;
     weight: number;
-    params: number[];
+    params: ModFuncParam[];
 }
 
 export const getModFuncs = async (): Promise<ModFunc[]> => {

@@ -2,7 +2,7 @@ import { range } from "lodash";
 import { Controls } from "../../lib/controller";
 
 import {createSlice, PayloadAction} from '@reduxjs/toolkit'
-import { ModFunc } from "../../lib/srv";
+import { ModFunc, ModFuncParam } from "../../lib/srv";
 import { ConfigState, initialConfigState, saveConfigStateToLocalStorage } from "../state";
 
 export const configSlice = createSlice({
@@ -94,7 +94,7 @@ export const configSlice = createSlice({
             }
             return state
         },
-        updateModFunc: (state, {payload: {idx, weight, params}}: PayloadAction<{idx: number, weight: number, params: number[]}>) => {
+        updateModFunc: (state, {payload: {idx, weight, params}}: PayloadAction<{idx: number, weight: number, params: ModFuncParam[]}>) => {
             state.modFuncs = state.modFuncs.map((x, _idx) => _idx === idx ? {...x, weight, params} : x)
 
             return state
