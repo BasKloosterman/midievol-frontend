@@ -7,7 +7,7 @@ import { mapTo01Linear } from "@dsp-ts/math";
 export interface ModFuncProps {
     idx: number;
     func: ModFunc;
-    score: number;
+    score: number | null;
     update: ({idx, weight}: {idx: number, weight: number}) => void;
     onLongPress: () => void;
     color?: string;
@@ -24,7 +24,7 @@ const ModFuncRegulator: FC<ModFuncProps> = ({func, update, idx, score, onLongPre
                 setValue={(n) => {
                     update({idx, weight: n}) 
                 }}
-                min={-10} max={10} label={`${name}: ${score.toFixed(3)}`} id={name}
+                min={-10} max={10} label={`${name}: ${score === null ? '-' : score.toFixed(3)}`} id={name}
                 displayValue={x => x.toFixed(2)}
                 mapToAngle={v => mapTo01Linear(v, -10, 10)}
                 onLongPress={onLongPress}

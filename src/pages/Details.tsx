@@ -207,10 +207,15 @@ const Details : FC<DetailsProps> = ({
         <Stack style={{display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', }} rowGap={2} marginTop={1} padding={3}>
             {configState.modFuncs.map((x, idx) => {
                 const clKey = `modFuncs.${idx}`
+                let score = melodyState.melody?.scores_per_func[idx] != undefined ? melodyState.melody?.scores_per_func[idx] : null
+
+                if (x.weight === 0) {
+                    score = null
+                }
                 return <div style={{display: 'flex', gap: 10, flexDirection: 'column'}}>
                         <ModFuncRegulator
                             color={controllerLearn === clKey ? 'red' : undefined}
-                            score={melodyState.melody?.scores_per_func[idx] || 0}
+                            score={score}
                             key={clKey}
                             idx={idx}
                             func={x}

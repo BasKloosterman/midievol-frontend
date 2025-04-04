@@ -1,6 +1,6 @@
 import { Note } from "./note"
 
-export interface Melody {notes: Note[], dna: string, scores_per_func: number[], score: number, bpm: number}
+export interface Melody {notes: Note[], dna: string, scores_per_func: (number | null)[], score: number, bpm: number}
 
 export const init = async (dna: string = '', modFuncs: ModFunc[], voices: {min: number, max: number}) : Promise<Melody> => {
     const _modFuncs = modFuncs.map(x => ({...x, weight: x.weight}))
