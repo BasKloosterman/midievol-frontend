@@ -186,7 +186,7 @@ const Details : FC<DetailsProps> = ({
             <Knob
                 label="bpm"
                 value={configState.bpm}
-                setValue={(x) => configDispatch(setBpm(x))}
+                setValue={(x) => configDispatch(setBpm(Math.max(Math.min(300, x), 20)))}
                 color={controllerLearn === 'bpm' ? 'red' : "#3F51B5"}
                 textColor="black"
                 min={20} max={300} id="BPM"
