@@ -7,6 +7,7 @@ export interface ConfigState {
     // Until bpm evo is implemented, just use the 'static' frontend BPM
     bpm: number;
     output: number;
+    visualizationOutput: number;
     controller: number;
     controls: Controls;
     channel: number;
@@ -25,6 +26,7 @@ export interface ConfigState {
 const _initialConfigState : ConfigState = {
     bpm: 90,
     output: 0,
+    visualizationOutput: 0,
     channel: 1,
     controller: -1,
     controls: emptyControls,

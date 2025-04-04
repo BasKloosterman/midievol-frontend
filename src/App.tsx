@@ -193,7 +193,8 @@ const App: FC = () => {
             <Player
                 ref={playerRef}
                 melody={melodyState.melody?.notes || []}
-                instrument={{channel: configState.channel, output: configState.output}}
+                instrument={configState.output}
+                visualization={configState.visualizationOutput}
                 metronome={{channel: configState.metronomeChannel, output: configState.metronomeOutput, enabled: configState.metronome}}
                 bpm={configState.bpm /*melody.bpm*/}
                 numVoices={Math.round(configState.numVoices)}

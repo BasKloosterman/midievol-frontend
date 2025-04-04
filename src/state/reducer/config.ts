@@ -25,6 +25,10 @@ export const configSlice = createSlice({
             state.output = payload
             return state
         },
+        setVisualizationOutput: (state, {payload} : PayloadAction<number>) => {
+            state.visualizationOutput = payload
+            return state
+        },
         setChannel: (state, {payload} : PayloadAction<number>) => {
             state.channel = payload
             return state
@@ -131,6 +135,7 @@ const ConfigReducer = configSlice.reducer
 export const {
     setBpm,
     setOutput,
+    setVisualizationOutput,
     setChannel,
     setController,
     setNumVoices,

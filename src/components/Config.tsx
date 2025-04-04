@@ -4,7 +4,7 @@ import Emitter, { events } from '../lib/eventemitter';
 import Select from './Select';
 import { Checkbox, Paper, Stack } from '@mui/material';
 import { ConfigContext } from '../state/context';
-import { setController, setOutput, setMetronome, setMetronomeOutput, setMetronomeChannel } from '../state/reducer/config';
+import { setController, setOutput, setMetronome, setMetronomeOutput, setMetronomeChannel, setVisualizationOutput } from '../state/reducer/config';
 
 export interface ConfigProps {
 }
@@ -41,6 +41,14 @@ const Config: FC<ConfigProps> = ({
                 label="Output"
                 onChange={(x) =>
                     configDispatch(setOutput(x))
+                }
+                options={outputs.map((x, idx) => ({value: idx, name: x.name}))}
+            />
+            <Select
+                value={configState.visualizationOutput || 0}
+                label="Visualization output"
+                onChange={(x) =>
+                    configDispatch(setVisualizationOutput(x))
                 }
                 options={outputs.map((x, idx) => ({value: idx, name: x.name}))}
             />

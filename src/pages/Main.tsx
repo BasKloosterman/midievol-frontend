@@ -90,7 +90,7 @@ const Main: FC<MainProps> = ({
                     <GlobalVoiceControl controllerLearn={controllerLearn} setControllerLearn={setControllerLearn}/>
                 </div>
             </div>
-            <Visualization output={configState.output}/>
+            <Visualization output={configState.visualizationOutput || configState.output}/>
         </div>
     )
 }

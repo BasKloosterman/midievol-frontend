@@ -53,12 +53,7 @@ const Details : FC<DetailsProps> = ({
     reset, setControllerLearn, controllerLearn
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
-    const {state: melodyState, dispatch: melodyDispatch_} = useContext(MelodyContext)!
-
-    const melodyDispatch = (action: AnyAction) => {
-        console.log('dispatch!', action)
-        melodyDispatch_(action)
-    }
+    const {state: melodyState, dispatch: melodyDispatch} = useContext(MelodyContext)!
 
     return <div>
     <Stack  alignItems="center" marginBottom={1} gap={2} direction="row">

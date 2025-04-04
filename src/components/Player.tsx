@@ -23,7 +23,8 @@ function panic(output: Output, channel = 0) {
 export interface PlayerProps {
     melody: Note[];
     bpm: number;
-    instrument: {output: number, channel: number};
+    instrument: number;
+    visualization: number;
     metronome: {output: number, channel: number, enabled: boolean};
     numVoices: number;
     voiceSplits: [number, number][]
@@ -93,7 +94,7 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
                 pos.current = 0
                 playing.current = false
 
-                let output = webMidi.current.outputs[propsref.current.instrument.output];
+                let output = webMidi.current.outputs[propsref.current.instrument];
 
                 panic(output)
                 props.trigger(t => t+1)
@@ -168,12 +169,22 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
 
         m.forEach(note => {
             if (note.position == pos.current) {
-                let output = webMidi.current.outputs[propsref.current.instrument.output];
+                let output = webMidi.current.outputs[propsref.current.instrument];
                 let channelIdx = getChannelIdx(note, propsref.current.numVoices, propsref.current.voiceSplits);
 
                 channelIdx.forEach(idx => {
                     output.channels[idx].playNote(transform(note.pitch), {duration: calculateLength(note.length, clock.current.getBPM(), frames), attack: 1});
                 })
+
+                console.log('propsref.current.visualization', propsref.current.visualization)
+
+                if (propsref.current.visualization && propsref.current.instrument != propsref.current.visualization) {
+                    output = webMidi.current.outputs[propsref.current.visualization];
+
+                    channelIdx.forEach(idx => {
+                        output.channels[idx].playNote(transform(note.pitch), {duration: calculateLength(note.length, clock.current.getBPM(), frames), attack: 1});
+                    })
+                }
             }
         })
 
