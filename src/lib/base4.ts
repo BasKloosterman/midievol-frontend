@@ -1,3 +1,5 @@
+import { sample } from "lodash";
+
 export const numToBase4 = (num: number) : string => {
     if (num === 0) return "0";
     
@@ -14,9 +16,24 @@ export const numToBase4 = (num: number) : string => {
     return base4String;
 }
 
+const getRandomCMajNote = (() => {
+    let idx = -1
+    const notes = [240, 280, 310]
+    return () => {
+        idx = (idx + 1) % 3
+        const n = notes[idx]
+        console.log('idx', idx, n)
+        return n
+    }
+})()
+
+
+const getRandomNote = () => Math.round((Math.random() * 840))
+
 export const createRandomNote = () => {
+    
     return [
-        numToBase4(Math.round((Math.random() * 840))).padStart(8, 'A'),
+        numToBase4(getRandomNote()).padStart(8, 'A'),
         numToBase4(Math.round((Math.random() * 2000))).padStart(8, 'A'),
         numToBase4(Math.round((Math.random() * 127))).padStart(4, 'A'),
         numToBase4(Math.round((Math.random() * 500*8))).padStart(16, 'A')
