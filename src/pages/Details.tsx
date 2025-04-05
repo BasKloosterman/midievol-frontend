@@ -24,6 +24,7 @@ import History from '../components/History';
 import { notes } from '../lib/keys';
 import { AnyAction } from '@reduxjs/toolkit';
 import { GlobalVoiceControl } from '../components/GlobalVoiceControl';
+import { scoreInKey } from '../lib/harmony';
 
 export const calcMelodyLength = (melody: Note[]) => {
     if (!melody.length) {
@@ -54,6 +55,10 @@ const Details : FC<DetailsProps> = ({
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
     const {state: melodyState, dispatch: melodyDispatch} = useContext(MelodyContext)!
+
+    const tonality = useMemo(() => {
+        return scoreInKey(melodyState.melody?.notes || [])
+    }, [melodyState.melody])
 
     return <div>
     <Stack  alignItems="center" marginBottom={1} gap={2} direction="row">
@@ -196,6 +201,7 @@ const Details : FC<DetailsProps> = ({
             />
             {/* <FormControlLabel control={<Checkbox checked={configState.autoSetVoiceSplit} onChange={x => configDispatch(setAutoSetVoiceSplit(x.target.checked))}/>} label="Auto set voice splits" /> */}
             <GlobalVoiceControl light={true} controllerLearn={controllerLearn} setControllerLearn={setControllerLearn} />
+            <label>{tonality?.key}: {tonality?.score}</label>
         </Stack>
     </Paper>
     <Paper elevation={2} >
