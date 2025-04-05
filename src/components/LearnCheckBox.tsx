@@ -22,6 +22,7 @@ export const LearnCheckbox: FC<
 
   return (
     <Checkbox
+      sx={{paddingBottom: 0}}
       {...rest}
 
       onMouseDown={handleMouseDown}

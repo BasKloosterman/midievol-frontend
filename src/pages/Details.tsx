@@ -220,7 +220,7 @@ const Details : FC<DetailsProps> = ({
                 if (x.weight === 0) {
                     score = null
                 }
-                return <div style={{display: 'flex', gap: 10, flexDirection: 'column'}}>
+                return <div style={{display: 'flex', gap: 10, flexDirection: 'column', alignItems: 'center', padding: 25, border: '1px solid rgba(0,0,0,0.05)'}}>
                         <ModFuncRegulator
                             color={controllerLearn === weightLearnKey ? 'red' : undefined}
                             score={score}
@@ -248,36 +248,37 @@ const Details : FC<DetailsProps> = ({
                                 }}/>
                             })}
                         </div>
-                        <div style={{display: 'flex', justifyContent: x.params.length > 1 ? 'space-between' : 'center'}}>
-                        {
-                            x.params.map((param, paramIdx) => {
-                                let range = param.range
-                                const paramKey = `${clKey}.params.${paramIdx}`
-                                const displayValue = param.type === 'note' ? (v: number) => numToNote(Math.round(v)) : (x: number) => x.toFixed(2)
-                                return <Knob
-                                    id={''}
-                                    key={`param-${idx}-${paramIdx}`}
-                                    color={controllerLearn === paramKey ? 'red' : "#3F51B5"}
-                                    textColor="black"
-                                    value={param.value}
-                                    //  setValue={(n) => {
-                                    //      update({idx, weight: n}) 
-                                    //  }}
-                                
-                                    onLongPress={() => setControllerLearn(paramKey)}
-                                    min={range[0]} max={range[1]} label={param.name}
-                                    displayValue={displayValue}
-                                    mapToAngle={v => mapTo01Linear(v, range[0], range[1])}
-                                    setValue={(n) => configDispatch(updateModFunc({
-                                        idx,
-                                        weight: x.weight,
-                                        params: x.params.map((param, pidx) => pidx === paramIdx ? {...param, value: n} : param),
-                                        voices: x.voices
-                                    }))}
-                                />
-                            })
+                        {x.params.length ? <div style={{display: 'flex', gap: 20, justifyContent: x.params.length > 1 ? 'space-between' : 'center'}}>
+                            {
+                                x.params.map((param, paramIdx) => {
+                                    let range = param.range
+                                    const paramKey = `${clKey}.params.${paramIdx}`
+                                    const displayValue = param.type === 'note' ? (v: number) => numToNote(Math.round(v)) : (x: number) => x.toFixed(2)
+                                    return <Knob
+                                        id={''}
+                                        key={`param-${idx}-${paramIdx}`}
+                                        color={controllerLearn === paramKey ? 'red' : "#3F51B5"}
+                                        textColor="black"
+                                        value={param.value}
+                                        //  setValue={(n) => {
+                                        //      update({idx, weight: n}) 
+                                        //  }}
+                                    
+                                        onLongPress={() => setControllerLearn(paramKey)}
+                                        min={range[0]} max={range[1]} label={param.name}
+                                        displayValue={displayValue}
+                                        mapToAngle={v => mapTo01Linear(v, range[0], range[1])}
+                                        setValue={(n) => configDispatch(updateModFunc({
+                                            idx,
+                                            weight: x.weight,
+                                            params: x.params.map((param, pidx) => pidx === paramIdx ? {...param, value: n} : param),
+                                            voices: x.voices
+                                        }))}
+                                    />
+                                })
+                            }
+                            </div> : null
                         }
-                        </div>
                     </div>
 
             })}
