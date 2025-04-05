@@ -24,9 +24,10 @@ import History from '../components/History';
 import { notes } from '../lib/keys';
 import { AnyAction } from '@reduxjs/toolkit';
 import { GlobalVoiceControl } from '../components/GlobalVoiceControl';
-import { unionBy } from 'lodash';
+import { sumBy, unionBy } from 'lodash';
 import { scoreInKey } from '../lib/harmony';
 import { LearnCheckbox } from '../components/LearnCheckBox';
+import { TimeDisplay } from '../components/TimeDisplay';
 
 export const calcMelodyLength = (melody: Note[]) => {
     if (!melody.length) {
@@ -49,10 +50,11 @@ interface DetailsProps extends ConfigProps {
     setControllerLearn: (key: string) => void;
     controllerLearn?: string;
     trigger: number;
+    curQNote: number;
 }
 
 const Details : FC<DetailsProps> = ({
-    changeView, playerRef,
+    changeView, playerRef, curQNote,
     reset, setControllerLearn, controllerLearn
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
@@ -207,7 +209,8 @@ const Details : FC<DetailsProps> = ({
             />
             {/* <FormControlLabel control={<Checkbox checked={configState.autoSetVoiceSplit} onChange={x => configDispatch(setAutoSetVoiceSplit(x.target.checked))}/>} label="Auto set voice splits" /> */}
             <GlobalVoiceControl light={true} controllerLearn={controllerLearn} setControllerLearn={setControllerLearn} />
-            <label>{tonality?.key}: {tonality?.score}</label>
+            <TimeDisplay curQNote={curQNote}/>
+            <label style={{fontSize: 24, fontWeight: 'bold', marginLeft: 50}}>{tonality?.key} ({tonality?.score.toFixed(2)})</label>
         </Stack>
     </Paper>
     <Paper elevation={2} >

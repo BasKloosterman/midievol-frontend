@@ -16,6 +16,7 @@ import { LearnIconButton } from "../components/LearnButton";
 import { ConfigContext } from "../state/context";
 import { setVoiceSplitMax, setVoiceSplitMin } from "../state/reducer/config";
 import { GlobalVoiceControl } from "../components/GlobalVoiceControl";
+import { TimeDisplay } from "../components/TimeDisplay";
 
 
 
@@ -28,10 +29,11 @@ interface MainProps {
     setControllerLearn: (key: string) => void;
     controllerLearn?: string;
     trigger: number;
+    curQNote: number;
 }
 
 const Main: FC<MainProps> = ({
-    changeView, player, 
+    changeView, player, curQNote,
     setControllerLearn, controllerLearn
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
@@ -86,8 +88,9 @@ const Main: FC<MainProps> = ({
 
                 </ButtonGroup>
                 </div>
-                <div style={{display: 'flex', gap: 35}}>
+                <div style={{display: 'flex', gap: 35, alignItems: 'center'}}>
                     <GlobalVoiceControl controllerLearn={controllerLearn} setControllerLearn={setControllerLearn}/>
+                    <TimeDisplay curQNote={curQNote} color='white'/>
                 </div>
             </div>
             <Visualization output={configState.visualizationOutput || configState.output}/>

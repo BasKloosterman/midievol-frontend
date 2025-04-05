@@ -30,6 +30,7 @@ export interface PlayerProps {
     voiceSplits: [number, number][]
     beforeLoop: () => void;
     trigger: Dispatch<SetStateAction<number>>;
+    onQNotePassed: (note: number) => void;
     // addNote: (note: Note) => void
 }
 
@@ -150,21 +151,20 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
             return
         }
 
-        
+        if (pos.current === 0) {
+            metronome && webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('A#5', {
+                duration: 200,
+                attack: 1
+            });
+            propsref.current.onQNotePassed(0)
+        }
 
-        if (metronome) {
-            if (pos.current === 0) {
-                webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('A#5', {
-                    duration: 200,
-                    attack: 1
-                });
-            }
-            if (pos.current % (1 * frames) === 0) {
-                webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('C3', {
-                    duration: 200,
-                    attack: 1
-                });
-            }
+        if (pos.current % (1 * frames) === 0) {
+            metronome && webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('C3', {
+                duration: 200,
+                attack: 1
+            });
+            propsref.current.onQNotePassed(pos.current / frames)
         }
 
         m.forEach(note => {

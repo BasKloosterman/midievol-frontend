@@ -32,6 +32,7 @@ const App: FC = () => {
     const playerRef = useRef<PlayerRef>(null);
     const [view, setView] = useState(views.main);
     const {enqueueSnackbar} = useSnackbar()
+    const [curQNote, setCurQNote] = useState(0);
 
 
 
@@ -230,6 +231,7 @@ const App: FC = () => {
                 numVoices={Math.round(configState.numVoices)}
                 voiceSplits={configState.voiceSplits}
                 trigger={setTrigger}
+                onQNotePassed={(cn) => setCurQNote(cn)}
                 beforeLoop={async () => {
                     if (loading) {
                         return
@@ -254,6 +256,7 @@ const App: FC = () => {
             {view == views.details ? (
                 <Details
                     trigger={trigger}
+                    curQNote={curQNote}
                     changeView={setView}
                     // melody={melody}
                     // nextMelody={nextMelody}
@@ -265,6 +268,7 @@ const App: FC = () => {
             ) : (
                 <Main
                     trigger={trigger}
+                    curQNote={curQNote}
                     notes={notes}
                     setNotes={setNotes}
                     changeView={setView}
