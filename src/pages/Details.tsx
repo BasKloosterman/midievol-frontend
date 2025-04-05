@@ -3,10 +3,10 @@ import PlayArrow from '@mui/icons-material/PlayArrow';
 import HomeIcon from '@mui/icons-material/Home';
 
 import { Stack, ButtonGroup, IconButton, TextField, Button, Paper, Checkbox, FormControlLabel } from "@mui/material";
-import { FC, useContext } from "react";
+import { FC, useContext, useMemo } from "react";
 import { views } from "../App";
 import { frames, Note, numToNote } from "../lib/note";
-import { Melody, ModFunc } from "../lib/srv";
+import { getModFuncs, Melody, ModFunc } from "../lib/srv";
 import { PlayerRef } from '../components/Player';
 import Config, { ConfigProps } from '../components/Config';
 import ModFuncRegulator, {ModFuncProps} from '../components/Modfunc';
@@ -14,17 +14,19 @@ import { Knob } from '../components/Knob';
 import { mapTo01Linear } from '@dsp-ts/math';
 import { LearnIconButton } from '../components/LearnButton';
 import { ConfigContext, MelodyContext } from '../state/context';
-import { setAutoSetVoiceSplit, setBpm, setChildren, setControls, setMelodyLen, setState, setXGens, updateModFunc } from '../state/reducer/config';
+import { setAutoSetVoiceSplit, setBpm, setChildren, setControls, setMelodyLen, setModFuncs, setState, setXGens, updateModFunc } from '../state/reducer/config';
 import { Download, RestartAlt, Save, Upload } from '@mui/icons-material';
 import FileImportButton, { downloadJSON } from '../lib/file';
-import { Controls, emptyControls } from '../lib/controller';
+import { Controls, emptyControls, NONE_ASSIGNED } from '../lib/controller';
 import { ConfigState, initialConfigState, MelodyState } from '../state/state';
 import { resetBuffer, setMelody, setNextMelody } from '../state/reducer/melody';
 import History from '../components/History';
 import { notes } from '../lib/keys';
 import { AnyAction } from '@reduxjs/toolkit';
 import { GlobalVoiceControl } from '../components/GlobalVoiceControl';
+import { unionBy } from 'lodash';
 import { scoreInKey } from '../lib/harmony';
+import { LearnCheckbox } from '../components/LearnCheckBox';
 
 export const calcMelodyLength = (melody: Note[]) => {
     if (!melody.length) {
@@ -160,7 +162,11 @@ const Details : FC<DetailsProps> = ({
             >
                 Full config
             </FileImportButton>
-            <Button variant="outlined" startIcon={<RestartAlt />} onClick={() => configDispatch(setState(initialConfigState(true)))}>
+            <Button variant="outlined" startIcon={<RestartAlt />} onClick={async () => {
+                let fns = await getModFuncs()
+                configDispatch(setState({...initialConfigState(true), modFuncs: fns}))
+                configDispatch(setModFuncs(fns))
+            }}>
                 Reset config
             </Button>
             <TextField
@@ -208,6 +214,7 @@ const Details : FC<DetailsProps> = ({
         <Stack style={{display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', }} rowGap={2} marginTop={1} padding={3}>
             {configState.modFuncs.map((x, idx) => {
                 const clKey = `modFuncs.${idx}`
+                const weightLearnKey = `${clKey}.weights`
                 let score = melodyState.melody?.scores_per_func[idx] != undefined ? melodyState.melody?.scores_per_func[idx] : null
 
                 if (x.weight === 0) {
@@ -215,17 +222,21 @@ const Details : FC<DetailsProps> = ({
                 }
                 return <div style={{display: 'flex', gap: 10, flexDirection: 'column'}}>
                         <ModFuncRegulator
-                            color={controllerLearn === clKey ? 'red' : undefined}
+                            color={controllerLearn === weightLearnKey ? 'red' : undefined}
                             score={score}
-                            key={clKey}
+                            key={weightLearnKey}
                             idx={idx}
                             func={x}
                             update={(modFunc) => configDispatch(updateModFunc({...modFunc, params: x.params, voices: x.voices}))}
-                            onLongPress={() => setControllerLearn(clKey)}
+                            onLongPress={() => setControllerLearn(weightLearnKey)}
                         />
                         <div style={{display: 'flex', justifyContent: 'center', gap: 10}}>
                             {x.voices.map((voice, voiceIdx) => {
-                                return <Checkbox checked={voice} onChange={(n) => {
+                                const checkLearnKey = `${clKey}.voicesChecks.${voiceIdx}`
+                                return <LearnCheckbox
+                                    style={{backgroundColor: controllerLearn === checkLearnKey ? 'red' : undefined}}
+                                    onLongPress={() => setControllerLearn(checkLearnKey)}
+                                    checked={voice} onChange={(n) => {
                                     configDispatch(
                                         updateModFunc({
                                             idx,

@@ -8,7 +8,7 @@ import Main from './pages/Main';
 import { AnimNote } from './components/Visualisation';
 import { range, unionBy } from 'lodash';
 import { ControlChangeMessageEvent, WebMidi } from 'webmidi';
-import { handleCCUpdate, NONE_ASSIGNED, updateControls } from './lib/controller';
+import { handleCCUpdate, mergeModFuncController, ModFuncControl, NONE_ASSIGNED, updateControls } from './lib/controller';
 import { mapFrom01Linear, mapTo01Linear } from '@dsp-ts/math';
 import ConfigReducer, { configSlice, setBpm, setControls, setModFuncs, setNumVoices, setVoiceSplitMax, setVoiceSplitMin, updateModFunc } from './state/reducer/config';
 import { ConfigContext, MelodyContext } from './state/context';
@@ -110,9 +110,28 @@ const App: FC = () => {
                     }
                 },
                 modFuncs: configState.modFuncs.map(
-                    (func, idx) => (v: number) => configDispatch(
-                        updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -10, 10), params: func.params, voices: func.voices})
-                    )
+                    (func, idx) => {
+                        return {
+                            weights: (v: number) => configDispatch(
+                                updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -10, 10), params: func.params, voices: func.voices})
+                            ),
+                            params: func.params.map((param, paramIdx) => 
+                                (v: number) => configDispatch(updateModFunc({
+                                    idx,
+                                    weight: func.weight,
+                                    params: func.params.map((param, pidx) => pidx === paramIdx ? {...param, value: mapFrom01Linear(mapTo01Linear(v, 0, 127), param.range[0], param.range[1])} : param),
+                                    voices: func.voices
+                                }))
+                            ),
+                            voicesChecks: [1,2,3].map((_, voiceIdx) => (v: number) => configDispatch(updateModFunc({
+                                    idx,
+                                    weight: func.weight,
+                                    params: func.params,
+                                    voices: func.voices.map((voice, pidx) => pidx === voiceIdx ? v > 0: voice) as [boolean, boolean, boolean]
+                                })
+                            ))
+                        }
+                    }
                 ),
                 changeView: (n: number) => {
                     if (n === 127) {
@@ -147,7 +166,18 @@ const App: FC = () => {
         (async () => {
             try {
             let fns = await getModFuncs()
-            configDispatch(setControls({...configState.controls, modFuncs: fns.map(x => NONE_ASSIGNED)}))
+            const emptyModFuncControls : ModFuncControl[] = fns.map(x => {
+                return {
+                    weights: NONE_ASSIGNED,
+                    params: x.params.map(_ => NONE_ASSIGNED),
+                    voicesChecks: [NONE_ASSIGNED, NONE_ASSIGNED, NONE_ASSIGNED]
+                }
+            })
+            configDispatch(
+                setControls(
+                    {...configState.controls, modFuncs: configState.controls?.modFuncs ? mergeModFuncController(emptyModFuncControls,  configState.controls?.modFuncs) : emptyModFuncControls}
+                )
+            )
             configDispatch(setModFuncs(unionBy(configState.modFuncs, fns, "name")))
 
                 let m: Melody;
