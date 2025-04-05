@@ -176,8 +176,6 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
                     output.channels[idx].playNote(transform(note.pitch), {duration: calculateLength(note.length, clock.current.getBPM(), frames), attack: 1});
                 })
 
-                console.log('propsref.current.visualization', propsref.current.visualization)
-
                 if (propsref.current.visualization && propsref.current.instrument != propsref.current.visualization) {
                     output = webMidi.current.outputs[propsref.current.visualization];
 

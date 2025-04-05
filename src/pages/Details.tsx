@@ -2,7 +2,7 @@ import StopIcon from '@mui/icons-material/Stop';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import HomeIcon from '@mui/icons-material/Home';
 
-import { Stack, ButtonGroup, IconButton, TextField, Button, Paper, Checkbox, FormControlLabel } from "@mui/material";
+import { Stack, ButtonGroup, IconButton, TextField, Button, Paper, Checkbox, FormControlLabel, CircularProgress } from "@mui/material";
 import { FC, useContext, useMemo } from "react";
 import { views } from "../App";
 import { frames, Note, numToNote } from "../lib/note";
@@ -51,10 +51,11 @@ interface DetailsProps extends ConfigProps {
     controllerLearn?: string;
     trigger: number;
     curQNote: number;
+    loading: boolean;
 }
 
 const Details : FC<DetailsProps> = ({
-    changeView, playerRef, curQNote,
+    changeView, playerRef, curQNote, loading,
     reset, setControllerLearn, controllerLearn
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
@@ -126,7 +127,6 @@ const Details : FC<DetailsProps> = ({
         
         {/* <p><label>counts:</label> {melody.notes.length ? melody.notes[melody.notes.length - 1].position / 500 : 0}</p>     */}
         <Button onClick={reset}>Reset</Button>
-        
     </Stack>
     <Paper elevation={2}>
         <Stack direction='row' gap={2} alignItems='center' padding={2} >
@@ -192,6 +192,7 @@ const Details : FC<DetailsProps> = ({
                 InputProps={{readOnly: true}}
                 size='small'
             />
+            {loading ? <CircularProgress size={30} /> : null}
         </Stack>
     </Paper>
     <Paper elevation={2}>

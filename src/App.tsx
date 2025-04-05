@@ -2,7 +2,7 @@ import { FC, useEffect, useReducer, useRef, useState } from 'react';
 import Player, { PlayerRef } from './components/Player';
 
 import { ModFunc, evolve, getModFuncs, init, Melody} from './lib/srv';
-import Details from './pages/Details';
+import Details, { calcMelodyLength } from './pages/Details';
 import { createRandomMelody } from './lib/base4';
 import Main from './pages/Main';
 import { AnimNote } from './components/Visualisation';
@@ -16,8 +16,8 @@ import MelodyReducer, { melodySlice, resetBuffer, setMelody, setNextMelody } fro
 import { useSnackbar } from 'notistack';
 import { ConfigState } from './state/state';
 
-const calcVoices = (state: ConfigState) => {
-    return {min: state.voiceSplits[1][0], max: state.voiceSplits[2][0]}
+const calcVoices = (voiceSplits: [number, number][]) => {
+    return {min: voiceSplits[1][0], max: voiceSplits[2][0]}
 }
 
 export enum views {
@@ -29,12 +29,12 @@ const App: FC = () => {
     const [configState, configDispatch] = useReducer(ConfigReducer, configSlice.getInitialState())
     const [melodyState, melodyDispatch] = useReducer(MelodyReducer, melodySlice.getInitialState())
     const [loading, setLoading]= useState(false)
+    const lastDuration= useRef(0);
+    const curQNoteRef = useRef(0);
     const playerRef = useRef<PlayerRef>(null);
     const [view, setView] = useState(views.main);
     const {enqueueSnackbar} = useSnackbar()
     const [curQNote, setCurQNote] = useState(0);
-
-
 
     // Used to trigger player update and cause rerender
     const [trigger, setTrigger] = useState(0);
@@ -45,6 +45,26 @@ const App: FC = () => {
     // currently trying to 'learn' it's CC channel 
     const [controllerLearn, setControllerLearn] = useState<string>()
     // const [controls, setControls] = useState<Controls>(emptyControls)
+
+    useEffect(() => {
+        // debounce melody update after config change
+        const handler = setTimeout(async () => {
+            const qNotesLeft = calcMelodyLength(melodyState.melody?.notes || []) - curQNoteRef.current
+            const timeToNext = qNotesLeft / (configState.bpm / 60) * 1000
+            if (lastDuration.current >= timeToNext) {
+                return
+            }
+            setLoading(true)
+            const [m, duration] = await evolve(melodyState.melody!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
+            setLoading(false)
+            melodyDispatch(setNextMelody(m))
+            lastDuration.current = duration
+        }, 2500); // debounce delay in ms
+
+        return () => {
+            clearTimeout(handler); // clear on cleanup to debounce
+        };
+    }, [configState.modFuncs, configState.voiceSplits]);
 
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
@@ -184,14 +204,14 @@ const App: FC = () => {
                 let m: Melody;
     
                 if (!melodyState.melody) {
-                    m = await init(createRandomMelody(configState.melodyLen), fns, calcVoices(configState))
+                    m = await init(createRandomMelody(configState.melodyLen), fns, calcVoices(configState.voiceSplits))
                     melodyDispatch(setMelody(m))
                 } else {
                     m = melodyState.melody
                 }
     
                 if (!melodyState.nextMelody) {
-                    m = await evolve(m.dna, configState.xGens, configState.children, fns, calcVoices(configState))
+                    [m] = await evolve(m.dna, configState.xGens, configState.children, fns, calcVoices(configState.voiceSplits))
                     melodyDispatch(setNextMelody(m))
                 }
             
@@ -204,10 +224,10 @@ const App: FC = () => {
 
     const reset =  async () =>  {
         try {
-            const newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs, calcVoices(configState))
+            const newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs, calcVoices(configState.voiceSplits))
             melodyDispatch(setMelody(newMelody))
     
-            const m = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState))
+            const [m] = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
             melodyDispatch(setNextMelody(m))
             melodyDispatch(resetBuffer(null))
         } catch (err) {
@@ -231,7 +251,10 @@ const App: FC = () => {
                 numVoices={Math.round(configState.numVoices)}
                 voiceSplits={configState.voiceSplits}
                 trigger={setTrigger}
-                onQNotePassed={(cn) => setCurQNote(cn)}
+                onQNotePassed={(cn) => {
+                    curQNoteRef.current = cn
+                    setCurQNote(cn)
+                }}
                 beforeLoop={async () => {
                     if (loading) {
                         return
@@ -241,10 +264,11 @@ const App: FC = () => {
                     try {
                         const nextToPlay = melodyState.nextMelody || melodyState.melody
                         melodyDispatch(setMelody(nextToPlay!))
-            
-                        const m = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState))
+                        melodyDispatch(setNextMelody(undefined))
+                        const [m, duration] = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
                         melodyDispatch(setNextMelody(m))
-                        enqueueSnackbar(`Melody updated!`, { variant: 'success' });
+                        lastDuration.current = duration
+                        
                     } catch (err) {
                         enqueueSnackbar(`An error has occured: ${err}`, { variant: 'error' });
                         console.error(err)
@@ -258,6 +282,7 @@ const App: FC = () => {
                     trigger={trigger}
                     curQNote={curQNote}
                     changeView={setView}
+                    loading={loading}
                     // melody={melody}
                     // nextMelody={nextMelody}
                     playerRef={playerRef}
@@ -270,6 +295,7 @@ const App: FC = () => {
                     trigger={trigger}
                     curQNote={curQNote}
                     notes={notes}
+                    loading={loading}
                     setNotes={setNotes}
                     changeView={setView}
                     player={playerRef.current}

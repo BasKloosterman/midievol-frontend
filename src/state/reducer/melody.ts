@@ -24,7 +24,7 @@ export const melodySlice = createSlice({
             state.ringBuf.add(payload)
             return state
         },
-        setNextMelody: (state, {payload}: PayloadAction<Melody>) => {
+        setNextMelody: (state, {payload}: PayloadAction<Melody | undefined>) => {
             state.nextMelody = payload
             return state
         },

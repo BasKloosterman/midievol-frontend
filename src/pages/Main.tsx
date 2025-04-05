@@ -4,7 +4,7 @@ import { PlayerRef } from "../components/Player";
 import StopIcon from '@mui/icons-material/Stop';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { ButtonGroup, IconButton, Slider, Typography } from "@mui/material";
+import { ButtonGroup, CircularProgress, IconButton, Slider, Typography } from "@mui/material";
 import { ModFunc } from "../lib/srv";
 import { frames, Note, numToNote } from "../lib/note";
 import Visualization, { AnimNote } from "../components/Visualisation";
@@ -30,10 +30,11 @@ interface MainProps {
     controllerLearn?: string;
     trigger: number;
     curQNote: number;
+    loading: boolean;
 }
 
 const Main: FC<MainProps> = ({
-    changeView, player, curQNote,
+    changeView, player, curQNote, loading,
     setControllerLearn, controllerLearn
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
@@ -91,6 +92,7 @@ const Main: FC<MainProps> = ({
                 <div style={{display: 'flex', gap: 35, alignItems: 'center'}}>
                     <GlobalVoiceControl controllerLearn={controllerLearn} setControllerLearn={setControllerLearn}/>
                     <TimeDisplay curQNote={curQNote} color='white'/>
+                    {loading ? <CircularProgress size={30} color="primary"/> : null}
                 </div>
             </div>
             <Visualization output={configState.visualizationOutput || configState.output}/>
