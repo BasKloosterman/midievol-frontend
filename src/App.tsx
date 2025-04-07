@@ -134,7 +134,7 @@ const App: FC = () => {
                     (func, idx) => {
                         return {
                             weights: (v: number) => configDispatch(
-                                updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 127), -12.8, 12.8), params: func.params, voices: func.voices})
+                                updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 126), -10, 10), params: func.params, voices: func.voices})
                             ),
                             params: func.params.map((param, paramIdx) => 
                                 (v: number) => configDispatch(updateModFunc({
