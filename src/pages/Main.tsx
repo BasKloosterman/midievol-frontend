@@ -13,7 +13,7 @@ import { mapTo01Linear } from "@dsp-ts/math";
 import { range } from "lodash";
 import { colorMap } from "../lib/color";
 import { LearnIconButton } from "../components/LearnButton";
-import { ConfigContext } from "../state/context";
+import { ConfigContext, MelodyContext } from "../state/context";
 import { setVoiceSplitMax, setVoiceSplitMin } from "../state/reducer/config";
 import { GlobalVoiceControl } from "../components/GlobalVoiceControl";
 import { TimeDisplay } from "../components/TimeDisplay";
@@ -38,6 +38,7 @@ const Main: FC<MainProps> = ({
     setControllerLearn, controllerLearn
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
+    const {state: melodyState, dispatch: melodyDispatch} = useContext(MelodyContext)!
     return (
         <div>
             <div style={{display: 'flex'}}>
@@ -95,6 +96,16 @@ const Main: FC<MainProps> = ({
                     {loading ? <CircularProgress size={30} color="primary"/> : null}
                 </div>
             </div>
+            <table style={{position: 'absolute', top: 150, left: 10, padding: 25, backgroundColor: 'rgba(255,255,255,0.5)'}}>
+            {configState.modFuncs.map((x, idx) => {
+                let score = melodyState.melody?.scores_per_func[idx] != undefined ? melodyState.melody?.scores_per_func[idx] : null
+
+                if (x.weight === 0) {
+                    score = null
+                }
+                return <tr><td>{x.name.replace('score', '')}</td> <td>{score ? score?.toFixed(2): '-'}</td></tr>  
+            })}
+            </table>
             <Visualization output={configState.visualizationOutput || configState.output}/>
         </div>
     )
