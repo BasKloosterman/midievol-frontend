@@ -147,7 +147,7 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
             pos.current = 0         
              // Detect start new loop
             propsref.current.beforeLoop()
-            panic(webMidi.current.outputs[propsref.current.metronome.output])
+            // panic(webMidi.current.outputs[propsref.current.metronome.output])
             return
         }
 
