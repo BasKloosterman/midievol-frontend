@@ -25,7 +25,7 @@ import { notes } from '../lib/keys';
 import { AnyAction } from '@reduxjs/toolkit';
 import { GlobalVoiceControl } from '../components/GlobalVoiceControl';
 import { sumBy, unionBy } from 'lodash';
-import { scoreInKey } from '../lib/harmony';
+import { scoreTonality } from '../lib/harmony';
 import { LearnCheckbox } from '../components/LearnCheckBox';
 import { TimeDisplay } from '../components/TimeDisplay';
 
@@ -62,7 +62,7 @@ const Details : FC<DetailsProps> = ({
     const {state: melodyState, dispatch: melodyDispatch} = useContext(MelodyContext)!
 
     const tonality = useMemo(() => {
-        return scoreInKey(melodyState.melody?.notes || [])
+        return scoreTonality(melodyState.melody?.notes || [])
     }, [melodyState.melody])
 
     return <div>
@@ -211,7 +211,7 @@ const Details : FC<DetailsProps> = ({
             {/* <FormControlLabel control={<Checkbox checked={configState.autoSetVoiceSplit} onChange={x => configDispatch(setAutoSetVoiceSplit(x.target.checked))}/>} label="Auto set voice splits" /> */}
             <GlobalVoiceControl light={true} controllerLearn={controllerLearn} setControllerLearn={setControllerLearn} />
             <TimeDisplay curQNote={curQNote}/>
-            <label style={{fontSize: 24, fontWeight: 'bold', marginLeft: 50}}>{tonality?.key} ({tonality?.score.toFixed(2)})</label>
+            <label style={{fontSize: 24, fontWeight: 'bold', marginLeft: 50}}>{tonality?.bestKey} ({tonality?.tonalityScore.toFixed(2)})</label>
         </Stack>
     </Paper>
     <Paper elevation={2} >
@@ -238,6 +238,7 @@ const Details : FC<DetailsProps> = ({
                             {x.voices.map((voice, voiceIdx) => {
                                 const checkLearnKey = `${clKey}.voicesChecks.${voiceIdx}`
                                 return <LearnCheckbox
+                                    key={checkLearnKey}
                                     style={{backgroundColor: controllerLearn === checkLearnKey ? 'red' : undefined}}
                                     onLongPress={() => setControllerLearn(checkLearnKey)}
                                     checked={voice} onChange={(n) => {
