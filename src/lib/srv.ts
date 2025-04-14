@@ -2,10 +2,12 @@ import { Note } from "./note"
 
 export interface Melody {notes: Note[], dna: string, scores_per_func: (number | null)[], score: number, bpm: number}
 
+const apiBaseURL = 'http://localhost:8080'
+
 export const init = async (dna: string = '', modFuncs: ModFunc[], voices: {min: number, max: number}) : Promise<Melody> => {
     const _modFuncs = modFuncs.map(x => ({...x, weight: x.weight}))
     return (await fetch(
-        'http://localhost:8080/init', {
+        `${apiBaseURL}/init`, {
             method: 'POST',
             body: JSON.stringify({dna, modFuncs: _modFuncs, voices: {min: Math.round(voices.min), max: Math.round(voices.max)}})
         }).then(
@@ -16,7 +18,7 @@ export const evolve = async (dna: string = '', xGens: number, children: number, 
     const _modFuncs = modFuncs.map(x => ({...x, weight: x.weight}))
     const start = performance.now();
     const result = (await fetch(
-        'http://localhost:8080/evolve', {
+        `${apiBaseURL}/evolve`, {
             method: 'POST',
             body: JSON.stringify({dna, x_gens: xGens, children, modFuncs: _modFuncs, voices: {min: Math.round(voices.min), max: Math.round(voices.max)}})
         }).then(
@@ -38,5 +40,5 @@ export interface ModFunc {
 }
 
 export const getModFuncs = async (): Promise<ModFunc[]> => {
-    return (await fetch('http://localhost:8080/get_funcs').then(x => x.json())) as ModFunc[]
+    return (await fetch(`${apiBaseURL}/get_funcs`).then(x => x.json())) as ModFunc[]
 }
