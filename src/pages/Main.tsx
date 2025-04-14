@@ -97,17 +97,23 @@ const Main: FC<MainProps> = ({
                 </div>
             </div>
             <table style={{position: 'absolute', top: 150, left: 10, padding: 25, backgroundColor: 'rgba(255,255,255,0.5)'}}>
-                    <tr><td>Score</td><td>{(melodyState.melody?.score || 0).toFixed(2)}</td></tr>
-                    <tr><td>&nbsp;</td>
-                    <td></td></tr>
+                <tbody>
+                    <tr>
+                        <td>Score</td><td>{(melodyState.melody?.score || 0).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>&nbsp;</td>
+                        <td></td>
+                    </tr>
             {configState.modFuncs.map((x, idx) => {
                 let score = melodyState.melody?.scores_per_func[idx] != undefined ? melodyState.melody?.scores_per_func[idx] : null
 
                 if (x.weight === 0) {
                     score = null
                 }
-                return <tr><td>{x.name.replace('score', '')}</td> <td>{score ? score?.toFixed(2): '-'}</td></tr>  
+                return <tr key={idx}><td>{x.name.replace('score', '')}</td> <td>{score ? score?.toFixed(2): '-'}</td></tr>  
             })}
+                </tbody>
             </table>
             <Visualization output={configState.visualizationOutput || configState.output}/>
         </div>
