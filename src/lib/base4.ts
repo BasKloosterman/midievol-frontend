@@ -22,7 +22,6 @@ const getRandomCMajNote = (() => {
     return () => {
         idx = (idx + 1) % 3
         const n = notes[idx]
-        console.log('idx', idx, n)
         return n
     }
 })()

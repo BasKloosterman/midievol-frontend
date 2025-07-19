@@ -5,6 +5,7 @@ import { Clock } from "../lib/clock";
 import Emitter, { events } from "../lib/eventemitter";
 import { calcMelodyLength } from "../pages/Details";
 import { range } from "lodash";
+import { MelodyState } from "../state/state";
 
 function panic(output: Output, channel = 0) {
     // Kill all notes
@@ -21,14 +22,14 @@ function panic(output: Output, channel = 0) {
 
 
 export interface PlayerProps {
-    melody: Note[];
+    melodyState: MelodyState;
     bpm: number;
     instrument: number;
     visualization: number;
     metronome: {output: number, channel: number, enabled: boolean};
     numVoices: number;
     voiceSplits: [number, number][]
-    beforeLoop: () => void;
+    beforeLoop: (idx: number) => void;
     trigger: Dispatch<SetStateAction<number>>;
     onQNotePassed: (note: number) => void;
     // addNote: (note: Note) => void
@@ -38,6 +39,8 @@ export interface PlayerRef {
     play: () => void;
     stop: () => void;
     pauze: () => void;
+    reset: () => void;
+    set: (position: number) => void;
     outputs: typeof WebMidi.outputs;
     isPlaying: () => boolean;
 }
@@ -60,12 +63,14 @@ const calculateLength = (length: number, bpm: number, frames_per_q: number) : nu
 }
 
 const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
-    const {melody} = props
+    const {melodyState} = props
+    const melody = melodyState.melody[melodyState.curMelodyIdx]?.notes || []
     const propsref = useRef<PlayerProps>(props)
     const melodyref = useRef<Note[]>(melody)
     const melodyLengthRef = useRef<number>(calcMelodyLength(melody))
     
     const pos = useRef<number>(0)
+    const loading = useRef<boolean>(true)
     const playing = useRef<boolean>(false)
     const webMidi = useRef<typeof WebMidi>(WebMidi)
     const clock = useRef<typeof Clock>(Clock)
@@ -88,21 +93,30 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
         return {
             play: () => {
                 playing.current = true
-                console.log('ready', ready.current)
                 props.trigger(t => t+1)
             },
             stop: () => {
-                pos.current = 0
+                pos.current = propsref.current.melodyState.history[propsref.current.melodyState.curMelodyIdx] || 0
                 playing.current = false
 
                 let output = webMidi.current.outputs[propsref.current.instrument];
 
                 panic(output)
+                props.onQNotePassed(0)
                 props.trigger(t => t+1)
             },
             pauze: () => {
                 playing.current = false
                 props.trigger(t => t+1)
+            },
+            reset: () => {
+                playing.current = false
+                props.trigger(t => t+1)
+                pos.current = 0
+                props.onQNotePassed(0)
+            },
+            set: (position: number) => {
+                pos.current = position
             },
             outputs: webMidi.current.outputs,
             isPlaying: () => {
@@ -116,8 +130,13 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
         const [loop, drumsOutput] = [true, 1]
         const {enabled: metronome} = propsref.current.metronome
         const melody = melodyref.current
+        const curMelodyIdx = propsref.current.melodyState.curMelodyIdx
+
         
         const loopRange = calcMelodyLength(melody)
+        const loopFrames = loopRange * frames
+        
+        let curLoopPos = (pos.current - (propsref.current.melodyState.history[curMelodyIdx] || 0))
 
         if (!ready.current) {
             return
@@ -126,12 +145,28 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
         if (!playing.current) {
             return
         }
+
+        if (curLoopPos === 0) {
+            metronome && webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('A#5', {
+                duration: 200,
+                attack: 1
+            });
+            propsref.current.onQNotePassed(0)
+        }
+
+        if (curLoopPos < loopFrames && loading.current) {
+            loading.current = false
+        }
+
+        if (loading.current) {
+            return
+        }
             
         const m = []
         let maxTicks = 0
         for (let idx = 0; idx < melody.length; idx++) {
             const element = melody[idx];
-            if (element.position < pos.current) {
+            if (element.position < curLoopPos) {
                 continue
             }
 
@@ -142,45 +177,62 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
             m.push(element)
         }
 
+        for (const [index, value] of propsref.current.melodyState.melody.entries()) {
+            if (index === curMelodyIdx) {
+                continue
+            }
+
+            let loopPos = pos.current - propsref.current.melodyState.history[index]
+            const loopFrames = calcMelodyLength(value?.notes || []) * frames
+
+            if (loopPos === loopFrames) {
+                propsref.current.beforeLoop(index)
+            }
+        }
+
         // Detect start new loop
-        if (loop && pos.current / frames >= loopRange) {
-            pos.current = 0         
+        if (loop && curLoopPos === loopFrames) {
              // Detect start new loop
-            propsref.current.beforeLoop()
+            propsref.current.beforeLoop(curMelodyIdx)
+            loading.current = true
             // panic(webMidi.current.outputs[propsref.current.metronome.output])
             return
         }
 
-        if (pos.current === 0) {
-            metronome && webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('A#5', {
-                duration: 200,
-                attack: 1
-            });
-            propsref.current.onQNotePassed(0)
-        }
-
-        if (pos.current % (1 * frames) === 0) {
+        if (curLoopPos % (1 * frames) === 0) {
             metronome && webMidi.current.outputs[propsref.current.metronome.output].channels[propsref.current.metronome.channel || 1].playNote('C3', {
                 duration: 200,
                 attack: 1
             });
-            propsref.current.onQNotePassed(pos.current / frames)
+            propsref.current.onQNotePassed(curLoopPos / frames)
         }
 
         m.forEach(note => {
-            if (note.position == pos.current) {
+            if (note.position == curLoopPos) {
                 let output = webMidi.current.outputs[propsref.current.instrument];
                 let channelIdx = getChannelIdx(note, propsref.current.numVoices, propsref.current.voiceSplits);
 
                 channelIdx.forEach(idx => {
-                    output.channels[idx].playNote(transform(note.pitch), {duration: calculateLength(note.length, clock.current.getBPM(), frames), attack: 1});
+                    output.channels[idx].playNote(
+                        transform(note.pitch),
+                        {
+                            duration: calculateLength(note.length, clock.current.getBPM(), frames),
+                            attack: note.volume / 127
+                        }
+                    );
                 })
 
                 if (propsref.current.visualization && propsref.current.instrument != propsref.current.visualization) {
                     output = webMidi.current.outputs[propsref.current.visualization];
 
                     channelIdx.forEach(idx => {
-                        output.channels[idx].playNote(transform(note.pitch), {duration: calculateLength(note.length, clock.current.getBPM(), frames), attack: 1});
+                        output.channels[idx].playNote(
+                            transform(note.pitch),
+                            {
+                                duration: calculateLength(note.length, clock.current.getBPM(), frames),
+                                attack: note.volume / 127
+                            }
+                        );
                     })
                 }
             }

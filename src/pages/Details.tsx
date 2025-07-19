@@ -2,29 +2,26 @@ import StopIcon from '@mui/icons-material/Stop';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import HomeIcon from '@mui/icons-material/Home';
 
-import { Stack, ButtonGroup, IconButton, TextField, Button, Paper, Checkbox, FormControlLabel, CircularProgress } from "@mui/material";
+import { Stack, ButtonGroup, TextField, Button, Paper, CircularProgress } from "@mui/material";
 import { FC, useContext, useMemo } from "react";
-import { views } from "../App";
+import { MelodySelect, views } from "../App";
 import { frames, Note, numToNote } from "../lib/note";
-import { getModFuncs, Melody, ModFunc } from "../lib/srv";
+import { getModFuncs } from "../lib/srv";
 import { PlayerRef } from '../components/Player';
 import Config, { ConfigProps } from '../components/Config';
-import ModFuncRegulator, {ModFuncProps} from '../components/Modfunc';
+import ModFuncRegulator from '../components/Modfunc';
 import { Knob } from '../components/Knob';
 import { mapTo01Linear } from '@dsp-ts/math';
 import { LearnIconButton } from '../components/LearnButton';
 import { ConfigContext, MelodyContext } from '../state/context';
-import { setAutoSetVoiceSplit, setBpm, setChildren, setControls, setMelodyLen, setModFuncs, setState, setXGens, updateModFunc } from '../state/reducer/config';
-import { Download, RestartAlt, Save, Upload } from '@mui/icons-material';
+import { setBpm, setChildren, setControls, setMelodyLen, setModFuncs, setState, setXGens, updateModFunc } from '../state/reducer/config';
+import { Download, RestartAlt, Upload } from '@mui/icons-material';
 import FileImportButton, { downloadJSON } from '../lib/file';
-import { Controls, emptyControls, NONE_ASSIGNED } from '../lib/controller';
+import { Controls, emptyControls } from '../lib/controller';
 import { ConfigState, initialConfigState, MelodyState } from '../state/state';
-import { resetBuffer, setMelody, setNextMelody } from '../state/reducer/melody';
+import { resetBuffer, setCurMelodyIdx, setMelody, setNextMelody } from '../state/reducer/melody';
 import History from '../components/History';
-import { notes } from '../lib/keys';
-import { AnyAction } from '@reduxjs/toolkit';
 import { GlobalVoiceControl } from '../components/GlobalVoiceControl';
-import { sumBy, unionBy } from 'lodash';
 import { scoreTonality } from '../lib/harmony';
 import { LearnCheckbox } from '../components/LearnCheckBox';
 import { TimeDisplay } from '../components/TimeDisplay';
@@ -40,6 +37,8 @@ export const calcMelodyLength = (melody: Note[]) => {
         loopRange_ += 1;
     }
 
+    // console.log('calcMelodyLength', melody, loopRange_)
+
     return loopRange_;
 };
 
@@ -52,17 +51,19 @@ interface DetailsProps extends ConfigProps {
     trigger: number;
     curQNote: number;
     loading: boolean;
+    setCurrentMelody: () => void;
 }
 
 const Details : FC<DetailsProps> = ({
     changeView, playerRef, curQNote, loading,
-    reset, setControllerLearn, controllerLearn
+    reset, setControllerLearn, controllerLearn,
+    setCurrentMelody
 }) => {
     const {state: configState, dispatch: configDispatch} = useContext(ConfigContext)!
     const {state: melodyState, dispatch: melodyDispatch} = useContext(MelodyContext)!
 
     const tonality = useMemo(() => {
-        return scoreTonality(melodyState.melody?.notes || [])
+        return scoreTonality(melodyState.melody[melodyState.curMelodyIdx]?.notes || [])
     }, [melodyState.melody])
 
     return <div>
@@ -126,7 +127,7 @@ const Details : FC<DetailsProps> = ({
             onInput={(e: React.ChangeEvent<HTMLInputElement>) => configDispatch(setMelodyLen(parseInt(e.target.value)))}/>
         
         {/* <p><label>counts:</label> {melody.notes.length ? melody.notes[melody.notes.length - 1].position / 500 : 0}</p>     */}
-        <Button onClick={reset}>Reset</Button>
+        <Button onClick={() => reset()}>Reset</Button>
     </Stack>
     <Paper elevation={2}>
         <Stack direction='row' gap={2} alignItems='center' padding={2} >
@@ -136,9 +137,12 @@ const Details : FC<DetailsProps> = ({
             <FileImportButton
                 variant='outlined'
                 onFileLoaded={(c: MelodyState) => {
-                    melodyDispatch(setNextMelody(c.nextMelody!))
-                    melodyDispatch(setMelody(c.melody!))
-                    melodyDispatch(resetBuffer(c.ringBuf!))
+                    // TODO fix load state
+                    // melodyDispatch(setNextMelody({melody: c.nextMelody!, idx: melodyState.curMelodyIdx}))
+                    // TODO fix load state
+                    // melodyDispatch(setMelody({melody: c.melody!, idx: melodyState.curMelodyIdx}))
+                    // TODO fix load state
+                    // melodyDispatch(resetBuffer({melody: c.ringBuf!, idx: melodyState.curMelodyIdx}))
                 }}
                 startIcon={<Upload />}
             >
@@ -174,21 +178,21 @@ const Details : FC<DetailsProps> = ({
             <TextField
                 style={{width: '88px'}}
                 label={"Note count"}
-                value={melodyState.melody?.notes.length}
+                value={melodyState.melody[melodyState.curMelodyIdx]?.notes.length}
                 InputProps={{readOnly: true}}
                 size='small'
             />
             <TextField
                 style={{width: '88px'}}
                 label={"Melody length"}
-                value={calcMelodyLength(melodyState.melody?.notes || [])}
+                value={calcMelodyLength(melodyState.melody[melodyState.curMelodyIdx]?.notes || [])}
                 InputProps={{readOnly: true}}
                 size='small'
             />
             <TextField
                 // style={{width: '61px'}}
                 label={"Score"}
-                value={melodyState.melody?.score}
+                value={melodyState.melody[melodyState.curMelodyIdx]?.score}
                 InputProps={{readOnly: true}}
                 size='small'
             />
@@ -212,6 +216,11 @@ const Details : FC<DetailsProps> = ({
             <GlobalVoiceControl light={true} controllerLearn={controllerLearn} setControllerLearn={setControllerLearn} />
             <TimeDisplay curQNote={curQNote}/>
             <label style={{fontSize: 24, fontWeight: 'bold', marginLeft: 50}}>{tonality?.bestKey} ({tonality?.tonalityScore.toFixed(2)})</label>
+            <MelodySelect curMelodyIdx={melodyState.curMelodyIdx} setMelodyIndex={(idx) => {
+                melodyDispatch(setCurMelodyIdx(idx))
+                playerRef.current?.set(melodyState.history[idx])
+            }}/>
+            <Button variant="contained" onClick={setCurrentMelody}>Copy as root</Button>
         </Stack>
     </Paper>
     <Paper elevation={2} >
@@ -219,19 +228,19 @@ const Details : FC<DetailsProps> = ({
             {configState.modFuncs.map((x, idx) => {
                 const clKey = `modFuncs.${idx}`
                 const weightLearnKey = `${clKey}.weights`
-                let score = melodyState.melody?.scores_per_func[idx] != undefined ? melodyState.melody?.scores_per_func[idx] : null
+                let score = melodyState.melody[melodyState.curMelodyIdx]?.scores_per_func[idx] != undefined ? melodyState.melody[melodyState.curMelodyIdx]?.scores_per_func[idx] : null
 
                 if (x.weight === 0) {
                     score = null
                 }
-                return <div style={{display: 'flex', gap: 10, flexDirection: 'column', alignItems: 'center', padding: 25, border: '1px solid rgba(0,0,0,0.05)'}}>
+                return <div key={idx} style={{display: 'flex', gap: 10, flexDirection: 'column', alignItems: 'center', padding: 25, border: '1px solid rgba(0,0,0,0.05)'}}>
                         <ModFuncRegulator
                             color={controllerLearn === weightLearnKey ? 'red' : undefined}
-                            score={score}
+                            score={score || null}
                             key={weightLearnKey}
                             idx={idx}
                             func={x}
-                            update={(modFunc) => configDispatch(updateModFunc({...modFunc, params: x.params, voices: x.voices}))}
+                            update={(modFunc) => configDispatch(updateModFunc({...modFunc, params: x.params, voices: x.voices, splitVoices: x.splitVoices}))}
                             onLongPress={() => setControllerLearn(weightLearnKey)}
                         />
                         <div style={{display: 'flex', justifyContent: 'center', gap: 10}}>
@@ -245,13 +254,26 @@ const Details : FC<DetailsProps> = ({
                                     configDispatch(
                                         updateModFunc({
                                             idx,
-                                            weight: x.weight,
-                                            params: x.params,
-                                            voices: x.voices.map((voice, pidx) => pidx === voiceIdx ? n.target.checked : voice) as [boolean, boolean, boolean]
+                                            ...x,
+                                            voices: x.voices.map((voice, pidx) => pidx === voiceIdx ? n.target.checked : voice) as [boolean, boolean, boolean],
                                         })
                                     )
                                 }}/>
                             })}
+
+                                <LearnCheckbox
+                                    key={`split-voices-${idx}`}
+                                    style={{backgroundColor: controllerLearn === `split-voices-${idx}` ? 'red' : undefined}}
+                                    onLongPress={() => setControllerLearn(`split-voices-${idx}`)}
+                                    checked={x.splitVoices} onChange={(n) => {
+                                    configDispatch(
+                                        updateModFunc({
+                                            idx,
+                                            ...x,
+                                            splitVoices: n.target.checked,
+                                        })
+                                    )
+                                }}/>
                         </div>
                         {x.params.length ? <div style={{display: 'flex', gap: 20, justifyContent: x.params.length > 1 ? 'space-between' : 'center'}}>
                             {
@@ -275,9 +297,8 @@ const Details : FC<DetailsProps> = ({
                                         mapToAngle={v => mapTo01Linear(v, range[0], range[1])}
                                         setValue={(n) => configDispatch(updateModFunc({
                                             idx,
-                                            weight: x.weight,
+                                            ...x,
                                             params: x.params.map((param, pidx) => pidx === paramIdx ? {...param, value: n} : param),
-                                            voices: x.voices
                                         }))}
                                     />
                                 })
@@ -292,7 +313,10 @@ const Details : FC<DetailsProps> = ({
         </Stack>
     </Paper>
     <Paper elevation={2} >
-        <History/>
+        <History setMelody={(idx) => {
+            melodyDispatch(setCurMelodyIdx(idx))
+            playerRef.current?.set(melodyState.history[idx])
+        }}/>
     </Paper>
     {/* <Stack>
         {melody.notes.map(n => n.length).reduce((acc, cur) => acc+cur, 0)/melody.notes.length}

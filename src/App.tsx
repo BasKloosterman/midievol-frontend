@@ -12,9 +12,42 @@ import { handleCCUpdate, mergeModFuncController, ModFuncControl, NONE_ASSIGNED, 
 import { mapFrom01Linear, mapTo01Linear } from '@dsp-ts/math';
 import ConfigReducer, { configSlice, setBpm, setControls, setModFuncs, setNumVoices, setVoiceSplitMax, setVoiceSplitMin, updateModFunc } from './state/reducer/config';
 import { ConfigContext, MelodyContext } from './state/context';
-import MelodyReducer, { melodySlice, resetBuffer, setMelody, setNextMelody } from './state/reducer/melody';
+import MelodyReducer, { melodySlice, resetBuffer, setHistory, setMelody, setNextMelody } from './state/reducer/melody';
 import { useSnackbar } from 'notistack';
 import { ConfigState } from './state/state';
+import { frames } from './lib/note';
+
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import mockMelodies from './data';
+  
+
+const parallelEvos = 5
+
+export function MelodySelect({curMelodyIdx, setMelodyIndex}: {curMelodyIdx : number, setMelodyIndex: (idx: number) => void}) {
+  
+
+  const handleChange = (
+    event: React.MouseEvent<HTMLElement>,
+    idx: number,
+  ) => {
+    idx != null && setMelodyIndex(idx);
+  };
+
+  return (
+    <ToggleButtonGroup
+      color="primary"
+      value={curMelodyIdx}
+      exclusive
+      onChange={handleChange}
+      aria-label="Platform"
+    >
+        {
+            range(parallelEvos).map(idx => <ToggleButton key={idx} value={idx}>{idx + 1}</ToggleButton>)
+        }
+    </ToggleButtonGroup>
+  );
+}
 
 const calcVoices = (voiceSplits: [number, number][]) => {
     return {min: voiceSplits[1][0], max: voiceSplits[2][0]}
@@ -49,15 +82,15 @@ const App: FC = () => {
     useEffect(() => {
         // debounce melody update after config change
         const handler = setTimeout(async () => {
-            const qNotesLeft = calcMelodyLength(melodyState.melody?.notes || []) - curQNoteRef.current
+            const qNotesLeft = calcMelodyLength(melodyState.melody[melodyState.curMelodyIdx]?.notes || []) - curQNoteRef.current
             const timeToNext = qNotesLeft / (configState.bpm / 60) * 1000
             if (lastDuration.current >= timeToNext) {
                 return
             }
             setLoading(true)
-            const [m, duration] = await evolve(melodyState.melody!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
+            const [m, duration] = await evolve(melodyState.melody[melodyState.curMelodyIdx]!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
             setLoading(false)
-            melodyDispatch(setNextMelody(m))
+            melodyDispatch(setNextMelody({melody: m, idx: melodyState.curMelodyIdx}))
             lastDuration.current = duration
         }, 2500); // debounce delay in ms
 
@@ -134,21 +167,19 @@ const App: FC = () => {
                     (func, idx) => {
                         return {
                             weights: (v: number) => configDispatch(
-                                updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 126), -10, 10), params: func.params, voices: func.voices})
+                                updateModFunc({idx, weight: mapFrom01Linear(mapTo01Linear(v, 0, 126), -10, 10), params: func.params, voices: func.voices, splitVoices: func.splitVoices})
                             ),
                             params: func.params.map((param, paramIdx) => 
                                 (v: number) => configDispatch(updateModFunc({
                                     idx,
-                                    weight: func.weight,
+                                    ...func,
                                     params: func.params.map((param, pidx) => pidx === paramIdx ? {...param, value: mapFrom01Linear(mapTo01Linear(v, 0, 127), param.range[0], param.range[1])} : param),
-                                    voices: func.voices
                                 }))
                             ),
                             voicesChecks: [1,2,3].map((_, voiceIdx) => (v: number) => configDispatch(updateModFunc({
+                                    ...func,
                                     idx,
-                                    weight: func.weight,
-                                    params: func.params,
-                                    voices: func.voices.map((voice, pidx) => pidx === voiceIdx ? v > 0: voice) as [boolean, boolean, boolean]
+                                    voices: func.voices.map((voice, pidx) => pidx === voiceIdx ? v > 0: voice) as [boolean, boolean, boolean], 
                                 })
                             ))
                         }
@@ -201,19 +232,24 @@ const App: FC = () => {
             )
             configDispatch(setModFuncs(unionBy(configState.modFuncs, fns, "name")))
 
-                let m: Melody;
-    
-                if (!melodyState.melody) {
-                    m = await init(createRandomMelody(configState.melodyLen), fns, calcVoices(configState.voiceSplits))
-                    melodyDispatch(setMelody(m))
-                } else {
-                    m = melodyState.melody
-                }
-    
-                if (!melodyState.nextMelody) {
-                    [m] = await evolve(m.dna, configState.xGens, configState.children, fns, calcVoices(configState.voiceSplits))
-                    melodyDispatch(setNextMelody(m))
-                }
+                let initial: Melody;
+
+                initial = await init(createRandomMelody(configState.melodyLen), fns, calcVoices(configState.voiceSplits))
+                for (let idx of range(parallelEvos)) {
+                    let m = initial
+                    if (!melodyState.melody[idx]?.notes?.length) {
+                        melodyDispatch(resetBuffer({idx: idx}))
+                        melodyDispatch(setMelody({melody: m, idx: idx}))
+                        melodyDispatch(setHistory({history: 0, idx: idx}))
+                    } else {
+                        m = melodyState.melody[idx]!
+                    }
+        
+                    if (!melodyState.nextMelody[idx]?.notes?.length) {
+                        [m] = await evolve(m.dna, configState.xGens, configState.children, fns, calcVoices(configState.voiceSplits))
+                        melodyDispatch(setNextMelody({melody: m, idx: idx}))
+                    }
+                }    
             
             } catch (err) {
                 enqueueSnackbar(`An error has occured: ${err}`, { variant: 'error' });
@@ -222,14 +258,42 @@ const App: FC = () => {
         })()
     }, [])
 
-    const reset =  async () =>  {
+    const reset =  async (melodyIdx?: number) =>  {
         try {
-            const newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs, calcVoices(configState.voiceSplits))
-            melodyDispatch(setMelody(newMelody))
+            playerRef.current?.reset()
+            
+            
+            let mel: Melody;
+
+            if (melodyIdx != undefined) {
+                mel = melodyState.melody[melodyIdx]!
+            } else {
+                let newMelody = await init(createRandomMelody(configState.melodyLen), configState.modFuncs, calcVoices(configState.voiceSplits));
+                [mel] = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
+            }
+
+
+            for (let idx of range(parallelEvos)) {
+                    
+                // melodyDispatch(setMelody({melody: newMelody, idx: melodyState.curMelodyIdx}))
+        
+                // const [m] = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
+                // melodyDispatch(setNextMelody({melody: m, idx: melodyState.curMelodyIdx}))
+                // melodyDispatch(resetBuffer({melody: newMelody, idx: melodyState.curMelodyIdx}))
+                
+                let m = mel
+                melodyDispatch(resetBuffer({idx: idx}));
+                melodyDispatch(setMelody({melody: m, idx: idx}));
+                melodyDispatch(setHistory({history: 0, idx: idx}));
     
-            const [m] = await evolve(newMelody.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
-            melodyDispatch(setNextMelody(m))
-            melodyDispatch(resetBuffer(null))
+                [m] = await evolve(m.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits));
+                melodyDispatch(setNextMelody({melody: m, idx: idx}));
+            }
+
+            if (melodyIdx != undefined) {
+                playerRef.current?.play()
+            }
+            
         } catch (err) {
             enqueueSnackbar(`An error has occured: ${err}`, { variant: 'error' });
             console.error(err)
@@ -243,7 +307,7 @@ const App: FC = () => {
         <div>
             <Player
                 ref={playerRef}
-                melody={melodyState.melody?.notes || []}
+                melodyState={melodyState}
                 instrument={configState.output}
                 visualization={configState.visualizationOutput}
                 metronome={{channel: configState.metronomeChannel, output: configState.metronomeOutput, enabled: configState.metronome}}
@@ -255,18 +319,22 @@ const App: FC = () => {
                     curQNoteRef.current = cn
                     setCurQNote(cn)
                 }}
-                beforeLoop={async () => {
+                beforeLoop={async (melodyIdx) => {
                     if (loading) {
                         return
                     }
 
                     setLoading(true)
                     try {
-                        const nextToPlay = melodyState.nextMelody || melodyState.melody
-                        melodyDispatch(setMelody(nextToPlay!))
-                        melodyDispatch(setNextMelody(undefined))
+                        const nextToPlay = melodyState.nextMelody[melodyIdx] || melodyState.melody[melodyIdx]
+                        const newHistory = melodyState.history[melodyIdx] + calcMelodyLength(melodyState.melody[melodyIdx]?.notes || []) * frames
+                        melodyDispatch(setMelody({melody: nextToPlay!, idx: melodyIdx}))
+                        melodyDispatch(setHistory({history: newHistory, idx: melodyIdx}))
+                        melodyDispatch(setNextMelody({idx: melodyIdx}))
+
+
                         const [m, duration] = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
-                        melodyDispatch(setNextMelody(m))
+                        melodyDispatch(setNextMelody({melody: m, idx: melodyIdx}))
                         lastDuration.current = duration
                         
                     } catch (err) {
@@ -289,6 +357,9 @@ const App: FC = () => {
                     reset={reset}
                     controllerLearn={controllerLearn}
                     setControllerLearn={setControllerLearn}
+                    setCurrentMelody={() => {
+                        reset(melodyState.curMelodyIdx)
+                    }}
                 />
             ) : (
                 <Main
@@ -299,7 +370,7 @@ const App: FC = () => {
                     setNotes={setNotes}
                     changeView={setView}
                     player={playerRef.current}
-                    melody={melodyState.melody?.notes}
+                    melody={melodyState.melody[melodyState.curMelodyIdx]?.notes}
                     controllerLearn={controllerLearn}
                     setControllerLearn={setControllerLearn}
                 />

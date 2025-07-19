@@ -82,7 +82,7 @@ export const updateControls = (
     channel: number
 ): Controls => {
     const result = get(controls, key);
-    console.log(result, channel);
+
     if (result === channel) {
         return controls;
     }

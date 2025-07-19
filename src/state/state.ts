@@ -2,6 +2,7 @@ import { createRandomMelody } from "../lib/base4";
 import { Controls, emptyControls } from "../lib/controller";
 import { Melody, ModFunc } from "../lib/srv"
 import RingBuffer, { RingBuf } from "../lib/ringbuf"
+import mockMelodies from "../data";
 
 export interface ConfigState {
     // Until bpm evo is implemented, just use the 'static' frontend BPM
@@ -66,17 +67,20 @@ export const saveConfigStateToLocalStorage = (state: ConfigState) => {
 
 export interface MelodyState {
     // Until bpm evo is implemented, just use the 'static' frontend BPM
-    melody?: Melody;
-    nextMelody?: Melody;
-    ringBuf: RingBuffer<Melody>;
+    curMelodyIdx: number;
+    melody: (Melody|undefined)[];
+    nextMelody: (Melody|undefined)[];
+    // array with length of already played melodies by index
+    history: number[];
+    ringBuf: RingBuffer<Melody>[];
 }
 
-// {dna: createRandomMelody(configState.melodyLen), notes: [], scores_per_func: [], score: -1, bpm: 90}
-
 const _initialMelodyState : MelodyState = {
-    melody: undefined,
-    nextMelody: undefined,
-    ringBuf: new RingBuffer(20)
+    curMelodyIdx: 0,
+    melody: mockMelodies,
+    nextMelody: [],
+    history: [0,0],
+    ringBuf: [new RingBuffer(20), new RingBuffer(20)]
 }
 
 export const initialMelodyState = (init=false) : MelodyState => init ? {..._initialMelodyState} : loadMelodyStateFromLocalStorage()
@@ -89,10 +93,15 @@ export const loadMelodyStateFromLocalStorage = () : MelodyState => {
         return _initialMelodyState;
       }
       const initialState = JSON.parse(savedState)
-      const ringBuf = new RingBuffer(20)
+      let ringBuf : RingBuf<Melody>[] = []
       
       if (initialState.ringBuf) {
-        ringBuf.fromSaved(initialState.ringBuf as any)
+        ringBuf = initialState.ringBuf.map((bufdata: any) =>  {
+          const buf = new RingBuffer(20)
+          buf.fromSaved(bufdata)
+          return buf
+        })
+
         delete(initialState.ringBuf)
       }
       

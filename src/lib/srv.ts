@@ -36,6 +36,9 @@ export interface ModFunc {
     name: string;
     weight: number;
     params: ModFuncParam[];
+    splitVoices: boolean;
+    hasAbsoluteScore: boolean;
+    normalizationFunc: string;
     voices: [boolean, boolean, boolean];
 }
 
