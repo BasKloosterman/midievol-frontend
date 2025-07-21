@@ -39,6 +39,7 @@ export function pearsonCorr(a: number[], b: number[]): number {
     3.66,
     2.29,
     2.88,
+    
   ];
   const MINOR_PROFILE = [
     6.33,
@@ -53,10 +54,26 @@ export function pearsonCorr(a: number[], b: number[]): number {
     5.19,
     2.33,
     2.39,
+    
   ];
   
   const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
   const MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10];
+
+  const pitchNames = [
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B",
+  ];
   
   function calculateTonalityScore(pitches: number[]) {
     if (pitches.length === 0) {
@@ -77,12 +94,13 @@ export function pearsonCorr(a: number[], b: number[]): number {
     for (let root = 0; root < 12; root++) {
       const majorCorr = pearsonCorr(
         noteDistribution,
-        rotate(MAJOR_PROFILE, root),
+        rotate(MAJOR_PROFILE, 12-root),
       );
       const minorCorr = pearsonCorr(
         noteDistribution,
-        rotate(MINOR_PROFILE, root),
+        rotate(MINOR_PROFILE, 12-root),
       );
+
   
       if (majorCorr > bestScore) {
         bestScore = majorCorr;
@@ -93,6 +111,7 @@ export function pearsonCorr(a: number[], b: number[]): number {
         bestKey = [root, "minor"];
       }
     }
+
   
     if (!bestKey) throw new Error("No best key found");
   
@@ -106,21 +125,8 @@ export function pearsonCorr(a: number[], b: number[]): number {
     );
     const outOfScaleCount = totalNotes - inScaleCount;
     const tonalScore = (inScaleCount - outOfScaleCount) / totalNotes;
-  
-    const pitchNames = [
-      "C",
-      "C#",
-      "D",
-      "D#",
-      "E",
-      "F",
-      "F#",
-      "G",
-      "G#",
-      "A",
-      "A#",
-      "B",
-    ];
+    
+
     const bestKeyName = `${pitchNames[root]} ${mode}`;
   
     return {
@@ -135,6 +141,6 @@ export function pearsonCorr(a: number[], b: number[]): number {
    
     const roundedPitches = melody.map((n) => Math.round(n.pitch / 10));
     const result = calculateTonalityScore(roundedPitches);
-    return {...result, tonalityScore: result.tonalityScore * 2 - 1};
+    return {...result, tonalityScore: result.tonalityScore};
   };
   

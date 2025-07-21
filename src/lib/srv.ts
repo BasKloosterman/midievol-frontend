@@ -30,16 +30,17 @@ export const evolve = async (dna: string = '', xGens: number, children: number, 
     return [result, duration]
 } 
 
-export interface ModFuncParam {name: string, range: [number,number], value: number, type: 'note' | 'float'}
+export interface ModFuncParam {name: string, range: [number,number], value: number, type: 'note' | 'float' | 'int'}
 
 export interface ModFunc {
     name: string;
     weight: number;
     params: ModFuncParam[];
     splitVoices: boolean;
-    hasAbsoluteScore: boolean;
+    hasNormalizedScore: boolean;
     normalizationFunc: string;
     voices: [boolean, boolean, boolean];
+    scoreRange: [number | null, number | null];
 }
 
 export const getModFuncs = async (): Promise<ModFunc[]> => {

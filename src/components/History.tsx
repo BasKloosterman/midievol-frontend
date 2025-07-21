@@ -3,6 +3,8 @@ import { ConfigContext, MelodyContext } from "../state/context";
 import { max, min, range } from "lodash";
 import StatCard, { FinalCard } from "./StatCard";
 import { colors, Paper, Typography } from "@mui/material";
+import { ContactlessOutlined } from "@mui/icons-material";
+import { parallelEvos } from "../App";
 
 
 
@@ -42,8 +44,9 @@ const History : FC<{setMelody: (idx: number) => void}> = ({setMelody}) => {
         return acc
     }, [] as number[][][])
     .map((x, funcIdx) => {
+        const fn = configState.modFuncs[usedFuncIndexes[funcIdx]]
         // normalize
-        const needNormalize = !configState.modFuncs[usedFuncIndexes[funcIdx]].hasAbsoluteScore
+        const needNormalize = !fn.hasNormalizedScore
 
         if (!needNormalize) {
             return {abs: x, norm: x}
@@ -51,14 +54,23 @@ const History : FC<{setMelody: (idx: number) => void}> = ({setMelody}) => {
 
         const flattened = x.flat()
 
-        const _min  = min(flattened)
-        const _max  = max(flattened)
+        const _min  = fn.scoreRange[0] != null ? fn.scoreRange[0] : min(flattened)
+        const _max  = fn.scoreRange[1] != null ? fn.scoreRange[1] : max(flattened)
 
         return {
             abs: x,
             norm: x.map(
                 lst => lst.map(
-                    n => normalize(n, _min, _max)
+                    n => {
+                        if (fn.scoreRange[1] != null && fn.scoreRange[1] === n) {
+                            return 1
+                        }
+
+                        if (fn.scoreRange[0] != null && fn.scoreRange[0] === n) {
+                            return -1
+                        }
+                        return normalize(n, _min, _max)! * 2 -1 // -1..1
+                    }
                 )
             )
         }
@@ -99,9 +111,12 @@ const History : FC<{setMelody: (idx: number) => void}> = ({setMelody}) => {
         }
         </div>
         {
-            range(5).map((melodyIdx) => {
+            range(parallelEvos).map((melodyIdx) => {
                 const avg = stats.reduce((acc, cur, idx) => {
-                    return acc + cur.norm[melodyIdx][cur.norm[melodyIdx].length - 1]!    
+                    const modFunc = configState.modFuncs[usedFuncIndexes[idx]]
+                    let score = (cur.norm[melodyIdx][cur.norm[melodyIdx].length - 1]! + 1) / 2
+
+                    return acc + score    
                 }, 0) / usedFuncIndexes.length
             
                 return <div style={{display: 'flex', flexDirection: 'row', marginBottom: 25, gap: 10}} key={melodyIdx}>
@@ -110,17 +125,29 @@ const History : FC<{setMelody: (idx: number) => void}> = ({setMelody}) => {
                         } elevation={3}>
                             <Typography fontWeight={'bold'} fontSize={30}>{melodyIdx + 1}</Typography>
                     </Paper>
-                    <FinalCard selected={curMelodyIdx == melodyIdx}score={avg}/>
+                    <FinalCard selected={curMelodyIdx == melodyIdx} score={avg}/>
                     {stats.map((stat, idx) => {
-                            const norm = stat.norm[melodyIdx]    
+                            const modFunc = configState.modFuncs[usedFuncIndexes[idx]]
+                            
+                            const norm = stat.norm[melodyIdx]
                             const abs = stat.abs[melodyIdx]
-                            let trend = (abs[abs.length - 1] - abs[0])
+
+                            const weightSign = modFunc.weight >= 0 ? 1 : -1
+                            const isNormalized = modFunc.hasNormalizedScore;
+
+                            let trend = (abs[abs.length - 1] - abs[0]);
+                            const trendSign = trend >= 0 ? 1 : -1;
+
+                            let score = norm[norm.length - 1]!
 
                             if (trend != 0) {
-                                trend = (trend / abs[0]) * 100
+                                trend = (Math.abs(trend) / Math.abs(abs[0])) * 100 * trendSign * weightSign;
                             }
-            
-                            return <StatCard key={idx} selected={curMelodyIdx == melodyIdx}trend={trend} score={(norm[norm.length - 1]!)}/>
+
+                            
+                            score = (score + 1) / 2
+
+                            return <StatCard key={idx} selected={curMelodyIdx == melodyIdx} trend={trend} score={score}/>
                         })
                     }
                     

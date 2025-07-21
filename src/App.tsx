@@ -20,9 +20,8 @@ import { frames } from './lib/note';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import mockMelodies from './data';
-  
 
-const parallelEvos = 5
+export const parallelEvos = 5
 
 export function MelodySelect({curMelodyIdx, setMelodyIndex}: {curMelodyIdx : number, setMelodyIndex: (idx: number) => void}) {
   
@@ -88,6 +87,7 @@ const App: FC = () => {
                 return
             }
             setLoading(true)
+
             const [m, duration] = await evolve(melodyState.melody[melodyState.curMelodyIdx]!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
             setLoading(false)
             melodyDispatch(setNextMelody({melody: m, idx: melodyState.curMelodyIdx}))
@@ -320,22 +320,26 @@ const App: FC = () => {
                     setCurQNote(cn)
                 }}
                 beforeLoop={async (melodyIdx) => {
-                    if (loading) {
-                        return
-                    }
-
                     setLoading(true)
                     try {
-                        const nextToPlay = melodyState.nextMelody[melodyIdx] || melodyState.melody[melodyIdx]
-                        const newHistory = melodyState.history[melodyIdx] + calcMelodyLength(melodyState.melody[melodyIdx]?.notes || []) * frames
-                        melodyDispatch(setMelody({melody: nextToPlay!, idx: melodyIdx}))
+                        const oldMelodyLength = calcMelodyLength(melodyState.melody[melodyIdx]?.notes || []) * frames;
+                        const oldHistory = melodyState.history[melodyIdx]
+                        const newHistory = oldHistory + oldMelodyLength
+                        const nextToPlay = melodyState.nextMelody[melodyIdx]
+                        console.log('load', melodyIdx, oldHistory, newHistory, oldMelodyLength, !!nextToPlay, !!nextToPlay && nextToPlay)
+
+                        if (nextToPlay) {
+                            melodyDispatch(setMelody({melody: nextToPlay!, idx: melodyIdx}))
+                            melodyDispatch(setNextMelody({idx: melodyIdx}))
+                        }
+
                         melodyDispatch(setHistory({history: newHistory, idx: melodyIdx}))
-                        melodyDispatch(setNextMelody({idx: melodyIdx}))
 
-
-                        const [m, duration] = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
-                        melodyDispatch(setNextMelody({melody: m, idx: melodyIdx}))
-                        lastDuration.current = duration
+                        if (nextToPlay) {
+                            const [m, duration] = await evolve(nextToPlay!.dna, configState.xGens, configState.children, configState.modFuncs, calcVoices(configState.voiceSplits))
+                            melodyDispatch(setNextMelody({melody: m, idx: melodyIdx}))
+                            lastDuration.current = duration
+                        }
                         
                     } catch (err) {
                         enqueueSnackbar(`An error has occured: ${err}`, { variant: 'error' });

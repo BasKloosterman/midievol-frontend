@@ -158,7 +158,25 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
             loading.current = false
         }
 
+        if (curLoopPos > loopFrames) {
+            pos.current = propsref.current.melodyState.history[curMelodyIdx]
+            return
+        }
+
         if (loading.current) {
+
+            // curLoopPos
+            // 9000
+            
+            // pos.current
+            // 171000
+            
+            // loopFrames
+            // 9000
+
+            // history
+            // 162000
+            // console.log('loading', curLoopPos, pos.current, loopFrames, propsref.current.melodyState.history[curMelodyIdx])
             return
         }
             
@@ -196,6 +214,7 @@ const Player = forwardRef<PlayerRef, PlayerProps>((props, ref) => {
             propsref.current.beforeLoop(curMelodyIdx)
             loading.current = true
             // panic(webMidi.current.outputs[propsref.current.metronome.output])
+            console.log('startLoop', curLoopPos, pos.current, loopFrames, propsref.current.melodyState.history[curMelodyIdx])
             return
         }
 

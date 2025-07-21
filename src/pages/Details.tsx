@@ -32,10 +32,13 @@ export const calcMelodyLength = (melody: Note[]) => {
     }
 
     const latestNote = Math.max(...melody.map(n => n.position + n.length))
+
+    // console.log('latestNote', latestNote, latestNote / frames)
+
     let loopRange_ = Math.ceil(latestNote / (1 * frames));
-    if (latestNote % (1 * frames) === 0) {
-        loopRange_ += 1;
-    }
+    // if (latestNote % (1 * frames) === 0) {
+    //     loopRange_ += 1;
+    // }
 
     // console.log('calcMelodyLength', melody, loopRange_)
 
@@ -236,7 +239,7 @@ const Details : FC<DetailsProps> = ({
                 return <div key={idx} style={{display: 'flex', gap: 10, flexDirection: 'column', alignItems: 'center', padding: 25, border: '1px solid rgba(0,0,0,0.05)'}}>
                         <ModFuncRegulator
                             color={controllerLearn === weightLearnKey ? 'red' : undefined}
-                            score={score || null}
+                            score={score!}
                             key={weightLearnKey}
                             idx={idx}
                             func={x}
@@ -279,8 +282,17 @@ const Details : FC<DetailsProps> = ({
                             {
                                 x.params.map((param, paramIdx) => {
                                     let range = param.range
+                                    let displayValue = (x: number) => x.toFixed(2);
+                                    
+                                    if (param.type === 'int') {
+                                        displayValue = (x: number) => Math.round(x) + ''
+                                    }
+                                    if (param.type === 'note') {
+                                        displayValue = (v: number) => numToNote(Math.round(v))
+                                    }
+
                                     const paramKey = `${clKey}.params.${paramIdx}`
-                                    const displayValue = param.type === 'note' ? (v: number) => numToNote(Math.round(v)) : (x: number) => x.toFixed(2)
+
                                     return <Knob
                                         id={''}
                                         key={`param-${idx}-${paramIdx}`}

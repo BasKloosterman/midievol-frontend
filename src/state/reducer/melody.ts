@@ -22,6 +22,7 @@ export const melodySlice = createSlice({
     reducers: {
         setHistory: (state, {payload}: PayloadAction<{history: number, idx: number}>) => {
             // update total melody length
+            console.log('set new history', payload.history)
             state.history[payload.idx] = payload.history
             return state
         },
